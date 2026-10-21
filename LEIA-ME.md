@@ -27,7 +27,7 @@ Regras:
 - Todo item precisa ser respondido: **Feito**, **Pendência** (com descrição obrigatória) ou **Não se aplica**, este só nos itens em que faz sentido (ex.: bandeiras com chuva).
 - A temperatura é digitada. Acima de -18 °C vira alerta e é preciso explicar o que foi feito.
 - As fotos têm que ser tiradas na hora: o app recusa foto antiga da galeria e grava data, hora, loja e nome em cada foto.
-- Caixa: a pessoa digita a quantidade de cada nota e moeda e o app soma. No fechamento, o app sugere a sangria (o que passar de R$ 300) e calcula o fundo do próximo turno.
+- Caixa: a pessoa digita a quantidade de cada nota e moeda e o app soma. No fechamento, o app sugere a sangria (o que passar de R$ 200) e calcula o fundo do próximo turno.
 - Quando há pendências, o app obriga a avisar o grupo da loja antes de liberar o envio do relatório para a gerência.
 - Se o app fechar no meio, o check-list continua de onde parou.
 

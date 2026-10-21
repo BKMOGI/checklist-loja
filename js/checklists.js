@@ -9,7 +9,7 @@
 //   na: "motivo"  → permite "Não se aplica" (ex.: bandeiras com chuva)
 //   novo: true    → item que não existia no formulário em papel
 
-const FUNDO_CAIXA_PADRAO = 300;
+const FUNDO_CAIXA_PADRAO = 200;
 const RESPONSAVEIS_MALOTE = ["Climério", "Vanessa", "Mariana", "Eliane"];
 const DENOMINACOES = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05];
 
@@ -192,7 +192,7 @@ const CHECKLISTS = {
       {
         titulo: "Checagens",
         itens: [
-          { id: "sangria", texto: "Se passar de R$ 300,00, fazer SANGRIA no PDV com o valor a mais" },
+          { id: "sangria", texto: "Se passar de R$ 200,00, fazer SANGRIA no PDV com o valor a mais" },
           { id: "fecha_operador", texto: "Apertar FECHA CAIXA OPERADOR" },
           { id: "cupons", texto: "Separar os cupons fiscais: crédito, débito e PIX, cada um em um clips" },
           { id: "malote", texto: "Colocar o valor da sangria e todos os cupons fiscais no malote" },
@@ -213,7 +213,7 @@ const CHECKLISTS = {
       {
         titulo: "Checagens",
         itens: [
-          { id: "sangria", texto: "Se passar de R$ 300,00, fazer SANGRIA no PDV com o valor a mais" },
+          { id: "sangria", texto: "Se passar de R$ 200,00, fazer SANGRIA no PDV com o valor a mais" },
           { id: "reducao_z", texto: "Apertar REDUÇÃO Z para sair os relatórios diário e de fechamento de caixa" },
           { id: "cupons", texto: "Separar os cupons fiscais: crédito, débito e PIX, cada um em um clips" },
           { id: "malote", texto: "Colocar as notas do fundo de caixa, todos os cupons fiscais e o relatório no malote" },
