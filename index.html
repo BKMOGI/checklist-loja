@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#156a39" />
+<title>Check-list BK</title>
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" href="./icons/icon-192.png" />
+<link rel="apple-touch-icon" href="./icons/icon-192.png" />
+<link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <button id="btn-voltar" class="icon-btn" aria-label="Voltar" hidden>←</button>
+  <h1 id="topbar-titulo">Check-list BK</h1>
+  <button id="btn-config" class="icon-btn" aria-label="Configurações">⚙</button>
+</header>
+<div class="progress" id="progresso" hidden><div></div></div>
+
+<main id="app">
+
+  <!-- INÍCIO -->
+  <section class="screen" id="screen-home">
+    <div class="saudacao">
+      <div class="avatar" id="home-avatar">?</div>
+      <div>
+        <div class="nome" id="home-nome">Olá!</div>
+        <div class="data" id="home-data"></div>
+      </div>
+      <button id="btn-trocar-nome">Ajustes</button>
+    </div>
+
+    <h2 class="section-title">Loja</h2>
+    <div class="grid-checklists" data-grupo="loja"></div>
+
+    <h2 class="section-title">Caixa</h2>
+    <div class="grid-checklists" data-grupo="caixa"></div>
+
+    <h2 class="section-title">Outros</h2>
+    <div class="grid-checklists" data-grupo="outros"></div>
+
+    <h2 class="section-title">Histórico</h2>
+    <div class="lista" id="lista-historico"></div>
+  </section>
+
+  <!-- CONFIGURAÇÕES -->
+  <section class="screen" id="screen-config">
+    <div class="card">
+      <h3>Loja deste celular</h3>
+      <p class="hint">O nome de quem preenche é perguntado no início de cada check-list.</p>
+      <label class="campo">Loja
+        <input type="text" id="cfg-loja" list="lojas" placeholder="Ex.: BK Mogi" />
+        <datalist id="lojas"><option value="BK Mogi"></option><option value="BK Santos"></option></datalist>
+      </label>
+    </div>
+    <div class="card">
+      <h3>WhatsApp da gerência</h3>
+      <p class="hint">Número que recebe o relatório quando o celular não consegue compartilhar o PDF direto (com DDD).</p>
+      <label class="campo">Número
+        <input type="tel" id="cfg-whats" inputmode="tel" placeholder="(11) 99999-9999" />
+      </label>
+    </div>
+    <div class="card">
+      <h3>Painel da gerência</h3>
+      <p class="hint">Liga o app à planilha Google da gerência. Na loja, basta abrir o link de conexão enviado pela gerência.</p>
+      <label class="campo">Link da planilha (Apps Script)
+        <input type="text" id="cfg-url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" />
+      </label>
+      <label class="campo">Chave de acesso
+        <input type="text" id="cfg-chave" placeholder="A mesma chave do script" autocapitalize="off" />
+      </label>
+      <label class="campo" style="display:flex;align-items:center;gap:10px;color:var(--text)">
+        <input type="checkbox" id="cfg-gerencia" style="width:22px;height:22px;margin:0" />
+        Este celular é da gerência (mostrar o painel)
+      </label>
+      <div id="cfg-painel-status"></div>
+      <button class="btn btn-secondary" id="btn-testar">Testar conexão</button>
+      <button class="btn btn-whats" id="btn-link-loja">💬 Enviar link de conexão para a loja</button>
+    </div>
+    <button class="btn btn-primary" id="btn-salvar-config">Salvar</button>
+  </section>
+
+  <!-- PAINEL DA GERÊNCIA -->
+  <section class="screen" id="screen-painel">
+    <div id="painel-conteudo"></div>
+  </section>
+
+  <!-- ETAPA DE PREENCHIMENTO -->
+  <section class="screen" id="screen-etapa">
+    <div id="etapa-conteudo"></div>
+  </section>
+
+  <!-- CONCLUÍDO -->
+  <section class="screen" id="screen-concluido">
+    <div id="concluido-conteudo"></div>
+  </section>
+
+</main>
+
+<div class="rodape" id="rodape" hidden>
+  <div class="wrap">
+    <button class="btn btn-secondary" id="btn-anterior">Voltar</button>
+    <button class="btn btn-primary" id="btn-proximo">Próximo</button>
+  </div>
+</div>
+
+<input type="file" id="input-foto" accept="image/*" capture="environment" hidden />
+
+<div class="loading-overlay" id="loading" hidden>
+  <div class="loading-box"><div class="spinner"></div><div id="loading-msg">Aguarde…</div></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="./vendor/jspdf.umd.min.js"></script>
+<script src="./js/checklists.js"></script>
+<script src="./js/db.js"></script>
+<script src="./js/foto.js"></script>
+<script src="./js/relatorio.js"></script>
+<script src="./js/sync.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>
