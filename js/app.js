@@ -3,11 +3,12 @@
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const { brl, hora, data, dataHora } = Relatorio;
+  const { brl, hora, data, dataHora, dataIso } = Relatorio;
 
   const GRUPOS = {
     loja: ["abertura_loja", "fechamento_loja"],
     caixa: ["abertura_caixa_manha", "fechamento_caixa_tarde", "abertura_caixa_tarde", "fechamento_caixa_noite"],
+    atividades: ["recebimento_caminhao", "limpeza_freezers"],
     outros: ["ocorrencia", "solicitacao_compras"],
   };
   // Rotina esperada todo dia (usada no painel da gerência).
@@ -79,11 +80,32 @@
       let badge = "";
       if (rasc) badge = `<span class="badge-st and">Em andamento</span>`;
       else if (feito && !avulso) badge = `<span class="badge-st ok">✓ ${hora(feito.fim)}</span>`;
+      let sub = d.codigo;
+      if (d.codigo === "OCOR") sub = "Qualquer problema na loja";
+      if (d.categoria === "atividade") {
+        const ultima = regs.find((r) => r.tipo === tipo && r.status === "finalizado");
+        const dr = ultima?.respostas?.data_receb?.valor;
+        sub = ultima ? `Último: ${dr ? dataIso(dr) : data(ultima.fim)}` : "1x por semana, no dia em que chegar";
+      }
+      if (d.periodicidadeDias) {
+        const p = prazoPeriodico(regs, tipo);
+        sub = p.texto;
+        if (!rasc && !feito && p.vencido) badge = `<span class="badge-st and">${p.dias === null ? "Fazer" : "Atrasada"}</span>`;
+      }
       return `<button class="tile ${largo ? "largo" : ""}" data-iniciar="${tipo}">
         <span class="ic">${d.icone}</span>
-        <span><span class="t">${esc(d.titulo)}</span><span class="c">${d.codigo === "OCOR" ? "Qualquer problema na loja" : d.codigo}</span></span>
+        <span><span class="t">${esc(d.titulo)}</span><span class="c">${esc(sub)}</span></span>
         ${badge}</button>`;
     };
+
+    // Aviso no topo quando a limpeza periódica venceu.
+    const avisos = Object.keys(CHECKLISTS).filter((t) => CHECKLISTS[t].periodicidadeDias).map((t) => {
+      const p = prazoPeriodico(regs, t);
+      if (!p.vencido) return "";
+      return `<div class="status-box warn" data-iniciar="${t}" style="cursor:pointer;margin-top:12px">
+        ${CHECKLISTS[t].icone} <b>${esc(CHECKLISTS[t].titulo)}</b> — ${esc(p.texto)}. Toque para fazer.</div>`;
+    }).join("");
+    $("#home-avisos").innerHTML = avisos;
     for (const [grupo, tipos] of Object.entries(GRUPOS)) {
       let html = tipos.map((t) => tile(t)).join("");
       if (grupo === "outros" && cfg.gerencia && Sync.configurado()) {
@@ -97,7 +119,7 @@
       const d = CHECKLISTS[r.tipo];
       let tag = `<span class="tag rasc">Em andamento</span>`;
       if (r.status === "finalizado") {
-        const a = d.categoria === "loja" || d.categoria === "caixa" ? Relatorio.analisar(r) : null;
+        const a = d.categoria !== "ocorrencia" && d.categoria !== "compras" ? Relatorio.analisar(r) : null;
         const p = a ? a.pendencias.length : 0;
         tag = p ? `<span class="tag pend">${p} pendência${p > 1 ? "s" : ""}</span>` : `<span class="tag ok">Concluído</span>`;
         if (d.categoria === "ocorrencia") tag = `<span class="tag pend">Ocorrência</span>`;
@@ -111,6 +133,19 @@
         <button class="btn-del" data-excluir="${r.id}" aria-label="Excluir">🗑</button>
       </div>`;
     }).join("") : `<div class="vazio">Nenhum check-list ainda.</div>`;
+  }
+
+  // Situação de uma tarefa periódica (ex.: limpeza dos freezers a cada 15 dias).
+  function prazoPeriodico(regs, tipo) {
+    const per = CHECKLISTS[tipo].periodicidadeDias;
+    const ultima = regs.filter((r) => r.tipo === tipo && r.status === "finalizado").map((r) => r.fim).sort((a, b) => b - a)[0];
+    if (!ultima) return { dias: null, vencido: true, texto: `A cada ${per} dias · sem registro ainda` };
+    const passados = Math.floor((inicioDoDia(0) - new Date(ultima).setHours(0, 0, 0, 0)) / 86400000);
+    const faltam = per - passados;
+    if (faltam > 1) return { dias: faltam, vencido: false, texto: `Última ${data(ultima)} · próxima em ${faltam} dias` };
+    if (faltam === 1) return { dias: 1, vencido: false, texto: `Última ${data(ultima)} · próxima amanhã` };
+    if (faltam === 0) return { dias: 0, vencido: true, texto: `Última ${data(ultima)} · vence hoje` };
+    return { dias: faltam, vencido: true, texto: `Última ${data(ultima)} · atrasada ${-faltam} dia${faltam < -1 ? "s" : ""}` };
   }
 
   async function iniciar(tipo) {
@@ -153,7 +188,7 @@
     const quem = { tipo: "quem", titulo: d.categoria === "compras" ? "Quem está solicitando?" : "Quem está preenchendo?" };
     const secoes = d.secoes.map((s) => ({ tipo: "secao", titulo: s.titulo, secao: s }));
     const final = { tipo: "final", titulo: "Revisar e finalizar" };
-    if (d.categoria === "loja") return [quem, ...secoes, { tipo: "fotos", titulo: "Fotos obrigatórias" }, final];
+    if (d.categoria === "loja" || d.categoria === "atividade") return [quem, ...secoes, ...(d.fotos.length ? [{ tipo: "fotos", titulo: "Fotos obrigatórias" }] : []), final];
     if (d.categoria === "caixa") return [quem, { tipo: "contagem", titulo: "Contagem do dinheiro" }, ...secoes, final];
     if (d.categoria === "compras") return [quem, { tipo: "compras", titulo: "Itens para comprar" }];
     return [quem, { tipo: "ocorrencia", titulo: "O que aconteceu?" }];
@@ -235,6 +270,11 @@
       corpo = `<div class="opcoes">${bt("ok", "✓ Tudo certo")}${bt("alerta", "Achei vencido")}${bt("pendente", "⚠ Pendência")}</div>`;
       if (st === "alerta") corpo += `<textarea data-obs="${it.id}" placeholder="Produto, lote, validade e o que foi feito (ex.: retirado da venda)">${esc(r.obs)}</textarea>`;
       if (st === "pendente") corpo += `<textarea data-obs="${it.id}" placeholder="O que ficou pendente e por quê?">${esc(r.obs)}</textarea>`;
+    } else if (it.tipo === "texto") {
+      corpo = `<input type="text" data-texto="${it.id}" value="${esc(r.valor)}" placeholder="${esc(it.placeholder || "")}" style="margin-top:0" />`;
+    } else if (it.tipo === "data") {
+      const hojeIso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      corpo = `<input type="date" data-texto="${it.id}" value="${esc(r.valor)}" max="${hojeIso}" style="margin-top:0;max-width:220px" />`;
     }
     return `<div class="item st-${st}" data-id="${it.id}">
       <div class="topo" ${it.tipo === "check" ? `data-toggle="${it.id}"` : ""}>
@@ -391,7 +431,7 @@
         const it = { ...it0, tipo: it0.tipo || "check" };
         const r = reg.respostas[it.id];
         const curto = it.texto.length > 55 ? it.texto.slice(0, 52) + "…" : it.texto;
-        if (!r || !r.status) erros.push({ id: it.id, msg: it.tipo === "temp" ? `Informe a temperatura: ${curto}` : `Responda: ${curto}` });
+        if (!r || !r.status) erros.push({ id: it.id, msg: it.tipo === "temp" ? `Informe a temperatura: ${curto}` : it.tipo === "texto" || it.tipo === "data" ? `Preencha: ${curto}` : `Responda: ${curto}` });
         else if ((r.status === "pendente" || r.status === "alerta") && !(r.obs || "").trim()) erros.push({ id: it.id, msg: `Descreva o problema: ${curto}` });
       }
     }
@@ -733,6 +773,14 @@
     t.closest(".erro")?.classList.remove("erro");
     if (ds.obs) { reg.respostas[ds.obs] = { ...(reg.respostas[ds.obs] || {}), obs: t.value }; return salvarDepois(); }
     if (ds.temp) return atualizarTemp(ds.temp, t.value);
+    if (ds.texto) {
+      reg.respostas[ds.texto] = { valor: t.value, status: t.value.trim() ? "ok" : "" };
+      const el = t.closest(".item");
+      el.className = `item st-${reg.respostas[ds.texto].status}`;
+      $(".marca", el).textContent = marcaDe(reg.respostas[ds.texto].status);
+      atualizarContador();
+      return salvarDepois();
+    }
     if (ds.campo) return definirCampo(ds.campo, t.value);
     if (ds.qtd) {
       const q = t.value.replace(/\D/g, "");
@@ -838,7 +886,8 @@
     const ate = painelPeriodo === "ontem" ? inicioDoDia(0) : Infinity;
     let regs;
     try {
-      regs = (await Sync.listar(desde)).filter((r) => r.inicio < ate).sort((a, b) => b.inicio - a.inicio);
+      // Busca 30 dias para saber a última limpeza dos freezers; o resto filtra pelo período.
+      regs = (await Sync.listar(Math.min(desde, inicioDoDia(30)))).map((r) => ({ ...r, status: "finalizado" })).sort((a, b) => b.inicio - a.inicio);
       try { localStorage.setItem("painelCache_" + painelPeriodo, JSON.stringify({ em: Date.now(), regs })); } catch { /* ok */ }
     } catch (e) {
       let cache = null;
@@ -848,7 +897,8 @@
       toast(`Sem internet — mostrando dados de ${dataHora(cache.em)}`, 4000);
     }
     painelRegs = regs;
-    $("#painel-lista").innerHTML = painelPeriodo === "7d" ? htmlPainelLista(regs) : htmlPainelDia(regs);
+    const doPeriodo = regs.filter((r) => r.inicio >= desde && r.inicio < ate);
+    $("#painel-lista").innerHTML = painelPeriodo === "7d" ? htmlPainelLista(doPeriodo) : htmlPainelDia(doPeriodo, regs);
   }
   let painelRegs = [];
 
@@ -866,8 +916,8 @@
       </div>${tag}</div>`;
   }
 
-  function htmlPainelDia(regs) {
-    const lojas = [...new Set([cfg.loja, ...regs.map((r) => r.loja)].filter(Boolean))];
+  function htmlPainelDia(regs, todos) {
+    const lojas = [...new Set([cfg.loja, ...todos.map((r) => r.loja)].filter(Boolean))];
     let html = "";
     const ocor = regs.filter((r) => r.categoria === "ocorrencia");
     if (ocor.length) html += `<h2 class="section-title">🚨 Ocorrências (${ocor.length})</h2><div class="lista">${ocor.map(linhaPainel).join("")}</div>`;
@@ -882,6 +932,16 @@
       }
       const compras = daLoja.filter((r) => r.categoria === "compras");
       html += compras.map(linhaPainel).join("") + `</div>`;
+
+      // Atividades do dia + situação das tarefas periódicas da loja
+      const ativ = daLoja.filter((r) => r.categoria === "atividade");
+      const periodicas = Object.keys(CHECKLISTS).filter((t) => CHECKLISTS[t].periodicidadeDias).map((t) => {
+        const p = prazoPeriodico(todos.filter((r) => r.loja === loja), t);
+        const d = CHECKLISTS[t];
+        return `<div class="reg-item"><div class="info"><div class="nome">${d.icone} ${esc(d.titulo)}</div><div class="meta">${esc(p.texto)}</div></div>
+          <span class="tag ${p.vencido ? "alta" : "ok"}">${p.vencido ? "Atrasada" : "Em dia"}</span></div>`;
+      }).join("");
+      html += `<h2 class="section-title">${esc(loja)} — atividades</h2><div class="lista">${ativ.map(linhaPainel).join("")}${periodicas}</div>`;
     }
     return html || `<div class="vazio">Nada registrado.</div>`;
   }
@@ -934,6 +994,7 @@
     const etapa = $("#etapa-conteudo");
     etapa.addEventListener("click", onCliqueEtapa);
     etapa.addEventListener("input", onInputEtapa);
+    etapa.addEventListener("change", (e) => { if (e.target.type === "date") onInputEtapa(e); });
 
     $("#concluido-conteudo").addEventListener("click", (e) => {
       const t = e.target.closest("[data-acao]");

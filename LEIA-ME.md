@@ -10,12 +10,18 @@ App para celular (PWA) com os check-lists diários da loja. Funciona sem interne
 | Fechamento de Loja | BKF04 | Salão, expositores, **ar-condicionado desligado**, forno e estufa, TV e luzes, porta trancada |
 | Abertura de Caixa (manhã e tarde) | BKF07 / BKF08 | — |
 | Fechamento de Caixa (tarde e noite) | BKF06 / BKF05 | — |
+| Recebimento do Caminhão (1x por semana) | — | Câmara fria organizada (visão geral e prateleiras) |
+| Limpeza dos Freezers (a cada 15 dias) | — | Freezer vazio e limpo, freezer religado e reabastecido |
 | Reportar Ocorrência | — | Opcionais |
 | Solicitação de Compras | BK08 | — |
 
 O que foi acrescentado aos formulários de papel aparece com a etiqueta **NOVO**:
 - **Abertura:** iFood, Delivery, responder os clientes pendentes no WhatsApp, lotes e vencimentos na planilha e nos freezers.
 - **Fechamento:** responder os clientes no WhatsApp, lotes e vencimentos na planilha e nos freezers, desligar o ar-condicionado.
+
+**Atividades do dia:**
+- **Recebimento do Caminhão:** a pessoa informa a data de recebimento, organiza a câmara fria (PEPS, nada no chão, retirar vencidos, temperatura final) e lança os lotes na planilha de vencimento. O card mostra a data do último recebimento.
+- **Limpeza dos Freezers:** a pessoa informa qual freezer será descongelado e limpo e segue o passo a passo (transferir produtos, desligar, degelo, limpar, secar, religar, conferir a temperatura e recolocar pelo PEPS). O app conta os 15 dias: mostra quando é a próxima e, quando vence, coloca um aviso no topo da tela inicial. No painel da gerência aparece "Em dia" ou "Atrasada" para cada loja.
 
 Regras:
 - Todo item precisa ser respondido: **Feito**, **Pendência** (com descrição obrigatória) ou **Não se aplica**, este só nos itens em que faz sentido (ex.: bandeiras com chuva).

@@ -224,6 +224,78 @@ const CHECKLISTS = {
     fotos: [],
   },
 
+  recebimento_caminhao: {
+    codigo: "ATIV",
+    titulo: "Recebimento do Caminhão",
+    icone: "🚚",
+    categoria: "atividade",
+    secoes: [
+      {
+        titulo: "Data de recebimento",
+        itens: [
+          { id: "data_receb", tipo: "data", texto: "Data em que o caminhão chegou" },
+        ],
+      },
+      {
+        titulo: "Organização da câmara fria",
+        itens: [
+          { id: "guardar", texto: "Guardar os congelados imediatamente na câmara fria (nada esperando fora)" },
+          { id: "categorias", texto: "Produtos separados por tipo/categoria" },
+          { id: "peps", texto: "PEPS: validade mais próxima na frente, mercadoria nova atrás" },
+          { id: "chao", texto: "Nenhuma caixa direto no chão (usar estrados/prateleiras)" },
+          { id: "caixas", texto: "Caixas abertas fechadas e identificadas" },
+          { id: "vencidos", tipo: "lote", texto: "Retirar produtos vencidos ou avariados" },
+          { id: "piso", texto: "Limpar piso e prateleiras" },
+          { id: "temp_final", tipo: "temp", max: -18, texto: "Temperatura da câmara fria ao terminar" },
+        ],
+      },
+      {
+        titulo: "Lançamento dos lotes",
+        itens: [
+          { id: "planilha", texto: "Lançar lote e vencimento de todos os produtos recebidos na planilha de vencimento" },
+          { id: "planilha_conf", texto: "Conferir se nenhum produto recebido ficou sem lançar" },
+        ],
+      },
+    ],
+    fotos: [
+      { id: "f_camara_geral", texto: "Câmara fria organizada — visão geral" },
+      { id: "f_camara_prat", texto: "Prateleiras organizadas (PEPS)" },
+    ],
+  },
+
+  limpeza_freezers: {
+    codigo: "ATIV",
+    titulo: "Limpeza dos Freezers",
+    icone: "🧽",
+    categoria: "atividade",
+    periodicidadeDias: 15,
+    secoes: [
+      {
+        titulo: "Preparação",
+        itens: [
+          { id: "quais", tipo: "texto", texto: "Qual freezer será descongelado e limpo?", placeholder: "Ex.: Freezer 2 (pão de queijo)" },
+          { id: "transferir", texto: "Transferir os produtos para a câmara fria antes de desligar" },
+          { id: "desligar", texto: "Desligar o freezer da tomada" },
+          { id: "degelo", texto: "Fazer o degelo completo (retirar todo o gelo)" },
+        ],
+      },
+      {
+        titulo: "Limpeza",
+        itens: [
+          { id: "limpar", texto: "Limpar por dentro e por fora com pano, água e sabão neutro" },
+          { id: "secar", texto: "Secar bem por dentro e as borrachas da tampa/porta" },
+          { id: "religar", texto: "Religar e esperar atingir a temperatura antes de recolocar os produtos" },
+          { id: "temp_religado", tipo: "temp", max: -18, texto: "Temperatura do freezer antes de recolocar os produtos" },
+          { id: "recolocar", tipo: "lote", texto: "Recolocar os produtos pelo PEPS, conferindo as validades" },
+        ],
+      },
+    ],
+    fotos: [
+      { id: "f_freezer_limpo", texto: "Freezer desligado, vazio e limpo" },
+      { id: "f_freezer_cheio", texto: "Freezer religado e reabastecido" },
+    ],
+  },
+
   solicitacao_compras: {
     codigo: "BK08",
     titulo: "Solicitação de Compras",

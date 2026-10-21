@@ -18,7 +18,7 @@ const Sync = (() => {
       loja: reg.loja, responsavel: reg.responsavel, inicio: reg.inicio, fim: reg.fim,
       avisoGrupoEm: reg.avisoGrupoEm || null,
     };
-    if (def.categoria === "loja" || def.categoria === "caixa") {
+    if (def.categoria === "loja" || def.categoria === "caixa" || def.categoria === "atividade") {
       const a = Relatorio.analisar(reg);
       Object.assign(m, {
         total: a.total, ok: a.ok, pendencias: a.pendencias.length, alertas: a.alertas.length,

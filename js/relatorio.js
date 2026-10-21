@@ -4,6 +4,7 @@ const Relatorio = (() => {
   const dataHora = (ts) => new Date(ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const data = (ts) => new Date(ts).toLocaleDateString("pt-BR");
+  const dataIso = (iso) => String(iso || "").split("-").reverse().join("/"); // 2026-10-21 → 21/10/2026
 
   function totalCaixa(caixa) {
     return DENOMINACOES.reduce((s, d) => s + d * (Number(caixa?.qtd?.[d]) || 0), 0);
@@ -41,6 +42,8 @@ const Relatorio = (() => {
   function rotuloResposta(it, resp) {
     if (!resp) return "—";
     if (it.tipo === "temp") return `${String(resp.valor).replace(".", ",")} °C`;
+    if (it.tipo === "texto") return "";
+    if (it.tipo === "data") return dataIso(resp.valor);
     if (it.tipo === "lote" && resp.status === "ok") return "Nada vencido";
     if (it.tipo === "lote" && resp.status === "alerta") return "Vencido/vencendo";
     return { ok: "OK", pendente: "PENDENTE", na: "N/A", alerta: "ALERTA" }[resp.status];
@@ -102,6 +105,10 @@ const Relatorio = (() => {
     const a = analisar(reg);
     const st = a.pendencias.length ? `⚠️ ${a.pendencias.length} pendência(s)` : "✅ Tudo concluído";
     const l = [cabecalhoTexto(reg, def), "", `${st} · ${a.ok}/${a.total} itens OK${a.na.length ? ` · ${a.na.length} N/A` : ""}`];
+    for (const it of a.itens.filter((i) => i.tipo === "texto" || i.tipo === "data")) {
+      const resp = reg.respostas[it.id];
+      if (resp?.valor) l.push(`📝 ${it.texto.replace(/\?$/, "")}: *${it.tipo === "data" ? dataIso(resp.valor) : resp.valor}*`);
+    }
     for (const it of a.itens.filter((i) => i.tipo === "temp")) {
       const resp = reg.respostas[it.id];
       if (resp) l.push(`🌡️ ${it.texto.split("(")[0].trim()}: ${String(resp.valor).replace(".", ",")} °C ${resp.status === "alerta" ? "⚠️" : "✓"}`);
@@ -249,9 +256,10 @@ const Relatorio = (() => {
           const c = !resp ? CINZA : resp.status === "ok" ? VERDE : resp.status === "na" ? CINZA : LARANJA;
           cor(c); doc.setFont("helvetica", "bold"); doc.text(rot, W - M, y, { align: "right" });
           y += linhas.length * 4.5;
-          if (resp?.obs && resp.status !== "pendente") {
-            doc.setFont("helvetica", "italic"); doc.setFontSize(8.5); cor(CINZA);
-            doc.splitTextToSize(resp.obs, CW - 38).forEach((ln) => { garantir(4); doc.text(ln, M + 3, y); y += 4; });
+          const detalhe = it.tipo === "texto" ? resp?.valor : resp?.status !== "pendente" ? resp?.obs : "";
+          if (detalhe) {
+            doc.setFont("helvetica", it.tipo === "texto" ? "bold" : "italic"); doc.setFontSize(it.tipo === "texto" ? 9.5 : 8.5); cor(it.tipo === "texto" ? ESCURO : CINZA);
+            doc.splitTextToSize(detalhe, CW - 38).forEach((ln) => { garantir(4.5); doc.text(ln, M + 3, y); y += 4.3; });
           }
           doc.setDrawColor(225, 231, 227); doc.setLineWidth(0.2); doc.line(M, y - 1.5, W - M, y - 1.5);
           y += 2.2;
@@ -341,5 +349,5 @@ const Relatorio = (() => {
     return `${slug}_${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}_${p(d.getHours())}h${p(d.getMinutes())}.pdf`;
   }
 
-  return { analisar, calcCaixa, totalCaixa, textoResumo, textoAvisoGrupo, gerarPdf, nomeArquivo, brl, dataHora, hora, data };
+  return { analisar, calcCaixa, totalCaixa, textoResumo, textoAvisoGrupo, gerarPdf, nomeArquivo, brl, dataHora, hora, data, dataIso };
 })();
