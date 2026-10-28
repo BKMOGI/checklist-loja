@@ -5,13 +5,31 @@
 //   check  → Feito / Pendência (pendência exige descrição)
 //   temp   → informa a temperatura (°C); fora do limite vira alerta no relatório
 //   lote   → "Encontrou produto vencido ou vencendo?" Não / Sim (descrever)
+//   texto / data → campo de preenchimento obrigatório
 // Opções:
+//   foto: true    → exige uma foto dentro do próprio item (ex.: visor de temperatura)
 //   na: "motivo"  → permite "Não se aplica" (ex.: bandeiras com chuva)
 //   novo: true    → item que não existia no formulário em papel
 
 const FUNDO_CAIXA_PADRAO = 200;
 const RESPONSAVEIS_MALOTE = ["Climério", "Vanessa", "Mariana", "Eliane"];
 const DENOMINACOES = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05];
+
+// Geladeiras/freezers da loja — a lista pode ser alterada em Ajustes no app.
+const GELADEIRAS_PADRAO = Array.from({ length: 11 }, (_, i) => `Geladeira ${i + 1}`);
+const TEMP_MAX = -18;
+
+// Monta a etapa "Temperaturas" da abertura: uma temperatura + foto do visor por
+// geladeira, mais a câmara fria. O id usa a posição para o rascunho continuar
+// válido se só o nome mudar.
+function aplicarGeladeiras(nomes) {
+  const lista = nomes && nomes.length ? nomes : GELADEIRAS_PADRAO;
+  const sec = CHECKLISTS.abertura_loja.secoes.find((s) => s.id === "temperaturas");
+  sec.itens = [
+    ...lista.map((nome, i) => ({ id: `temp_gel_${i + 1}`, tipo: "temp", max: TEMP_MAX, foto: true, texto: nome })),
+    { id: "temp_camara", tipo: "temp", max: TEMP_MAX, foto: true, texto: "Câmara fria" },
+  ];
+}
 
 const ITENS_LOTE = [
   { id: "lote_planilha", texto: "Verificar lotes e vencimentos na planilha de controle de lote" },
@@ -45,11 +63,9 @@ const CHECKLISTS = {
         ],
       },
       {
+        id: "temperaturas",
         titulo: "Temperaturas",
-        itens: [
-          { id: "temp_geladeiras", tipo: "temp", max: -18, texto: "Temperatura das geladeiras/freezers (sempre estar em -18°C)" },
-          { id: "temp_camara", tipo: "temp", max: -18, texto: "Temperatura da câmara fria" },
-        ],
+        itens: [], // montado por aplicarGeladeiras() a partir da lista em Ajustes
       },
       {
         titulo: "Limpeza e salão",
@@ -89,8 +105,6 @@ const CHECKLISTS = {
     ],
     fotos: [
       { id: "f_fachada", texto: "Fachada com a placa de ABERTO" },
-      { id: "f_temp_gel", texto: "Visor de temperatura das geladeiras/freezers" },
-      { id: "f_temp_cam", texto: "Visor de temperatura da câmara fria" },
       { id: "f_salao", texto: "Salão e expositores limpos" },
       { id: "f_banheiro", texto: "Banheiro limpo" },
     ],
@@ -334,3 +348,5 @@ const URGENCIAS = ["Baixa", "Média", "Alta"];
 function itensDoChecklist(def) {
   return def.secoes.flatMap((s) => s.itens.map((i) => ({ ...i, tipo: i.tipo || "check", secao: s.titulo })));
 }
+
+aplicarGeladeiras(GELADEIRAS_PADRAO);

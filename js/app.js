@@ -217,6 +217,7 @@
       const itens = e.secao.itens.map((i) => ({ ...i, tipo: i.tipo || "check" }));
       const feitos = itens.filter((i) => reg.respostas[i.id]?.status).length;
       contagem = `<span id="cont-secao">${feitos} de ${itens.length} itens respondidos</span>`;
+      if (itens.some((i) => i.foto)) contagem += `<br>Padrão: até ${TEMP_MAX} °C. Em cada uma, digite a temperatura e tire a foto do visor.`;
       corpo = itens.map(htmlItem).join("");
     } else if (e.tipo === "fotos") {
       contagem = "Tire as fotos agora pela câmera. Foto antiga da galeria não é aceita.";
@@ -265,7 +266,8 @@
           <button class="btn btn-secondary" style="width:52px;margin:0;padding:12px 0;font-size:20px" data-sinal="${it.id}">${neg ? "−" : "+"}</button>
           <input type="text" inputmode="decimal" data-temp="${it.id}" value="${abs}" placeholder="00" /><span>°C</span>
         </div>
-        <div class="aviso-temp">${htmlAvisoTemp(it, r)}</div>`;
+        <div class="aviso-temp">${htmlAvisoTemp(it, r)}</div>
+        ${it.foto ? htmlFotoItem(it) : ""}`;
     } else if (it.tipo === "lote") {
       corpo = `<div class="opcoes">${bt("ok", "✓ Tudo certo")}${bt("alerta", "Achei vencido")}${bt("pendente", "⚠ Pendência")}</div>`;
       if (st === "alerta") corpo += `<textarea data-obs="${it.id}" placeholder="Produto, lote, validade e o que foi feito (ex.: retirado da venda)">${esc(r.obs)}</textarea>`;
@@ -283,6 +285,15 @@
       </div>
       <div class="corpo">${corpo}</div>
     </div>`;
+  }
+
+  // Foto obrigatória dentro do próprio item (ex.: visor de temperatura de cada geladeira).
+  function htmlFotoItem(it) {
+    const f = reg.fotos[it.id];
+    if (!f) return `<button class="btn-foto-item" data-foto-item="${it.id}">📷 Tirar foto do visor <small>(obrigatória)</small></button>`;
+    return `<div class="foto-item"><img src="${URL.createObjectURL(f.blob)}" alt="" />
+      <span>✓ Foto do visor · ${hora(f.ts)}</span>
+      <button data-foto-item="${it.id}" class="refazer">Refazer</button></div>`;
   }
 
   function htmlAvisoTemp(it, r) {
@@ -433,6 +444,7 @@
         const curto = it.texto.length > 55 ? it.texto.slice(0, 52) + "…" : it.texto;
         if (!r || !r.status) erros.push({ id: it.id, msg: it.tipo === "temp" ? `Informe a temperatura: ${curto}` : it.tipo === "texto" || it.tipo === "data" ? `Preencha: ${curto}` : `Responda: ${curto}` });
         else if ((r.status === "pendente" || r.status === "alerta") && !(r.obs || "").trim()) erros.push({ id: it.id, msg: `Descreva o problema: ${curto}` });
+        if (it.foto && !reg.fotos[it.id]) erros.push({ id: it.id, msg: `Tire a foto do visor: ${curto}` });
       }
     }
     if (e.tipo === "fotos") {
@@ -639,23 +651,48 @@
   }
 
   // ---------- FOTOS ----------
-  function abrirCamera(alvo) {
+  function legendaDoAlvo(alvo) {
+    if (alvo.slot) return def.fotos.find((f) => f.id === alvo.slot).texto;
+    if (alvo.item) return itensDoChecklist(def).find((i) => i.id === alvo.item).texto;
+    return null;
+  }
+
+  async function abrirCamera(alvo) {
+    if (!$("#camera").hidden || !$("#loading").hidden) return; // já aberta (toque duplo) ou processando a anterior
     fotoAlvo = alvo;
+    await Db.salvar(reg); // garante o rascunho salvo antes de abrir a câmera
+    if (Camera.suportada()) {
+      try {
+        const blob = await Camera.capturar(legendaDoAlvo(alvo) || "Foto adicional");
+        if (blob) await fotoEscolhida(new File([blob], "foto.jpg", { type: "image/jpeg", lastModified: Date.now() }));
+        else fotoAlvo = null;
+        return;
+      } catch (e) {
+        console.warn("câmera do app indisponível", e);
+        toast(e.name === "NotAllowedError" ? "Permita o uso da câmera para este app (ícone de cadeado na barra de endereço)." : "Abrindo a câmera do celular…", 4500);
+        if (e.name === "NotAllowedError") { fotoAlvo = null; return; }
+      }
+    }
     const inp = $("#input-foto");
     inp.value = "";
     inp.click();
   }
 
   async function fotoEscolhida(file) {
-    if (!file || !fotoAlvo) return;
+    // Guarda o destino agora: se outra foto for pedida durante o processamento,
+    // esta não pode cair no lugar da outra.
+    const alvo = fotoAlvo;
+    fotoAlvo = null;
+    if (!file || !alvo) return;
     carregando("Processando foto…");
     try {
-      const legenda = fotoAlvo.slot ? def.fotos.find((f) => f.id === fotoAlvo.slot).texto : null;
+      const legenda = legendaDoAlvo(alvo);
       const foto = await Foto.processar(file, {
         linha1: `${reg.loja} · ${def.titulo.replace("—", "-")}`,
         linha2: `${new Date().toLocaleString("pt-BR")} · ${reg.responsavel}${legenda ? " · " + legenda : ""}`,
       });
-      if (fotoAlvo.slot) reg.fotos[fotoAlvo.slot] = foto;
+      if (alvo.slot) reg.fotos[alvo.slot] = foto;
+      else if (alvo.item) reg.fotos[alvo.item] = foto;
       else reg.extras.push(foto);
       await Db.salvar(reg);
       renderEtapaMantendoScroll();
@@ -663,7 +700,6 @@
       toast(e.message, 4500);
     } finally {
       carregando(null);
-      fotoAlvo = null;
     }
   }
 
@@ -733,7 +769,7 @@
   }
 
   function onCliqueEtapa(ev) {
-    const t = ev.target.closest("button, [data-toggle], [data-foto], [data-add-extra]");
+    const t = ev.target.closest("button, [data-toggle], [data-foto], [data-add-extra], [data-foto-item]");
     if (!t) return;
     t.closest(".erro")?.classList.remove("erro");
     const ds = t.dataset;
@@ -747,6 +783,8 @@
       t.textContent = reg.respostas[ds.sinal].sinal === "+" ? "+" : "−";
       return atualizarTemp(ds.sinal, $(`[data-temp="${ds.sinal}"]`).value);
     }
+    if (ds.delFotoItem) { ev.stopPropagation(); delete reg.fotos[ds.delFotoItem]; salvarDepois(); return atualizarItem(ds.delFotoItem); }
+    if (ds.fotoItem) return abrirCamera({ item: ds.fotoItem });
     if (ds.foto) return abrirCamera({ slot: ds.foto });
     if (ds.addExtra) return abrirCamera({ extra: true });
     if (ds.nome) { reg.responsavel = ds.nome; salvarDepois(); return proximo(); }
@@ -810,15 +848,26 @@
     mostrar("config", "Configurações");
     $("#cfg-loja").value = cfg.loja || "";
     $("#cfg-whats").value = cfg.whats || "";
+    $("#cfg-geladeiras").value = (cfg.geladeiras && cfg.geladeiras.length ? cfg.geladeiras : GELADEIRAS_PADRAO).join("\n");
+    contarGeladeiras();
     $("#cfg-url").value = cfg.syncUrl || "";
     $("#cfg-chave").value = cfg.syncChave || "";
     $("#cfg-gerencia").checked = !!cfg.gerencia;
     $("#cfg-painel-status").innerHTML = Sync.configurado() ? `<div class="status-box success">☁️ Conectado ao painel.</div>` : "";
   }
 
+  function lerGeladeiras() {
+    return $("#cfg-geladeiras").value.split("\n").map((s) => s.trim()).filter(Boolean);
+  }
+  function contarGeladeiras() {
+    $("#cfg-gel-qtd").textContent = lerGeladeiras().length;
+  }
+
   function salvarConfig() {
     cfg.loja = $("#cfg-loja").value.trim();
     cfg.whats = $("#cfg-whats").value.trim();
+    cfg.geladeiras = lerGeladeiras();
+    aplicarGeladeiras(cfg.geladeiras);
     cfg.syncUrl = $("#cfg-url").value.trim();
     cfg.syncChave = $("#cfg-chave").value.trim();
     cfg.gerencia = $("#cfg-gerencia").checked;
@@ -843,7 +892,7 @@
   }
 
   function linkConexao() {
-    const dados = btoa(unescape(encodeURIComponent(JSON.stringify({ u: $("#cfg-url").value.trim(), k: $("#cfg-chave").value.trim(), w: $("#cfg-whats").value.trim() }))));
+    const dados = btoa(unescape(encodeURIComponent(JSON.stringify({ u: $("#cfg-url").value.trim(), k: $("#cfg-chave").value.trim(), w: $("#cfg-whats").value.trim(), g: lerGeladeiras() }))));
     return `${location.origin}${location.pathname}?conectar=${encodeURIComponent(dados)}`;
   }
 
@@ -861,6 +910,7 @@
       cfg.syncUrl = d.u;
       cfg.syncChave = d.k;
       if (d.w) cfg.whats = d.w;
+      if (d.g && d.g.length) cfg.geladeiras = d.g;
       gravarCfg();
       setTimeout(() => toast("☁️ App conectado ao painel da gerência!", 4000), 300);
     } catch { toast("Link de conexão inválido."); }
@@ -973,6 +1023,7 @@
     $("#btn-config").addEventListener("click", renderConfig);
     $("#btn-trocar-nome").addEventListener("click", renderConfig);
     $("#btn-salvar-config").addEventListener("click", salvarConfig);
+    $("#cfg-geladeiras").addEventListener("input", contarGeladeiras);
     $("#btn-testar").addEventListener("click", testarConexao);
     $("#btn-link-loja").addEventListener("click", enviarLinkLoja);
     $("#btn-anterior").addEventListener("click", anterior);
@@ -1014,6 +1065,7 @@
 
   async function main() {
     aplicarLinkConexao();
+    if (cfg.geladeiras && cfg.geladeiras.length) aplicarGeladeiras(cfg.geladeiras);
     ligarEventos();
     await Db.limparAntigos(45);
     await renderHome();

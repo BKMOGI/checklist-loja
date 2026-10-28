@@ -6,7 +6,7 @@ App para celular (PWA) com os check-lists diários da loja. Funciona sem interne
 
 | Check-list | Formulário | Fotos obrigatórias |
 |---|---|---|
-| Abertura de Loja | BKF03 | Fachada com a placa de ABERTO, visor das geladeiras, visor da câmara fria, salão, banheiro |
+| Abertura de Loja | BKF03 | Visor de **cada geladeira** e da câmara fria (junto com a temperatura), fachada com a placa de ABERTO, salão, banheiro |
 | Fechamento de Loja | BKF04 | Salão, expositores, **ar-condicionado desligado**, forno e estufa, TV e luzes, porta trancada |
 | Abertura de Caixa (manhã e tarde) | BKF07 / BKF08 | — |
 | Fechamento de Caixa (tarde e noite) | BKF06 / BKF05 | — |
@@ -25,8 +25,8 @@ O que foi acrescentado aos formulários de papel aparece com a etiqueta **NOVO**
 
 Regras:
 - Todo item precisa ser respondido: **Feito**, **Pendência** (com descrição obrigatória) ou **Não se aplica**, este só nos itens em que faz sentido (ex.: bandeiras com chuva).
-- A temperatura é digitada. Acima de -18 °C vira alerta e é preciso explicar o que foi feito.
-- As fotos têm que ser tiradas na hora: o app recusa foto antiga da galeria e grava data, hora, loja e nome em cada foto.
+- Temperaturas: cada geladeira/freezer tem o seu cartão com a temperatura e a foto do visor (11 por padrão; a lista de nomes fica em ⚙ Ajustes e vai junto no link de conexão). Acima de -18 °C vira alerta e é preciso explicar o que foi feito.
+- As fotos são tiradas pela câmera do próprio app (não sai do app, então nada se perde) e cada uma recebe data, hora, loja e nome gravados. Na primeira vez o celular pergunta se pode usar a câmera: tocar em **Permitir**.
 - Caixa: a pessoa digita a quantidade de cada nota e moeda e o app soma. No fechamento, o app sugere a sangria (o que passar de R$ 200) e calcula o fundo do próximo turno.
 - Quando há pendências, o app obriga a avisar o grupo da loja antes de liberar o envio do relatório para a gerência.
 - Se o app fechar no meio, o check-list continua de onde parou.

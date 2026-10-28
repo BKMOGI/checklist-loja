@@ -1,4 +1,4 @@
-const CACHE_NAME = "checklist-bk-v3";
+const CACHE_NAME = "checklist-bk-v4";
 
 const ASSETS = [
   "./",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./js/checklists.js",
   "./js/db.js",
   "./js/foto.js",
+  "./js/camera.js",
   "./js/relatorio.js",
   "./js/sync.js",
   "./js/app.js",

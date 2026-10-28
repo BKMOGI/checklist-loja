@@ -109,9 +109,16 @@ const Relatorio = (() => {
       const resp = reg.respostas[it.id];
       if (resp?.valor) l.push(`📝 ${it.texto.replace(/\?$/, "")}: *${it.tipo === "data" ? dataIso(resp.valor) : resp.valor}*`);
     }
-    for (const it of a.itens.filter((i) => i.tipo === "temp")) {
-      const resp = reg.respostas[it.id];
-      if (resp) l.push(`🌡️ ${it.texto.split("(")[0].trim()}: ${String(resp.valor).replace(".", ",")} °C ${resp.status === "alerta" ? "⚠️" : "✓"}`);
+    const temps = a.itens.filter((i) => i.tipo === "temp" && reg.respostas[i.id]);
+    if (temps.length > 3) {
+      // Muitas geladeiras: uma linha de resumo; as fora do padrão aparecem em "Alertas".
+      const fora = temps.filter((i) => reg.respostas[i.id].status === "alerta").length;
+      l.push(`🌡️ Temperaturas: ${temps.length - fora}/${temps.length} dentro do padrão${fora ? ` · ⚠️ ${fora} fora` : " ✓"}`);
+    } else {
+      for (const it of temps) {
+        const resp = reg.respostas[it.id];
+        l.push(`🌡️ ${it.texto.split("(")[0].trim()}: ${String(resp.valor).replace(".", ",")} °C ${resp.status === "alerta" ? "⚠️" : "✓"}`);
+      }
     }
     if (a.caixa) {
       l.push(`💵 Contado: *${brl(a.caixa.total)}*`);
@@ -129,7 +136,7 @@ const Relatorio = (() => {
     }
     if (a.alertas.length) {
       l.push("", "*Alertas:*");
-      a.alertas.forEach((p) => l.push(`• ${p.texto}${p.obs ? " — " + p.obs : ""}`));
+      a.alertas.forEach((p) => l.push(`• ${p.texto}${p.tipo === "temp" ? ` (${String(p.valor).replace(".", ",")} °C)` : ""}${p.obs ? " — " + p.obs : ""}`));
     }
     if (reg.obsGeral) l.push("", `📝 ${reg.obsGeral}`);
     if (reg.avisoGrupoEm) l.push("", `📣 Pendências avisadas no grupo às ${hora(reg.avisoGrupoEm)}`);
@@ -307,6 +314,11 @@ const Relatorio = (() => {
 
     // Fotos
     const fotos = [];
+    for (const it of itensDoChecklist(def)) {
+      if (!it.foto || !reg.fotos[it.id]) continue;
+      const v = reg.respostas[it.id]?.valor;
+      fotos.push({ leg: `${it.texto}${v != null && v !== "" ? ` (${String(v).replace(".", ",")} °C)` : ""}`, ...reg.fotos[it.id] });
+    }
     for (const f of def.fotos) if (reg.fotos[f.id]) fotos.push({ leg: f.texto, ...reg.fotos[f.id] });
     const rotuloExtra = def.categoria === "ocorrencia" ? "Foto da ocorrência" : "Foto adicional";
     reg.extras.forEach((f, i) => fotos.push({ leg: f.legenda || `${rotuloExtra} ${i + 1}`, ...f }));

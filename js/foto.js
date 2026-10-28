@@ -1,7 +1,7 @@
 // Tratamento das fotos: reduz o tamanho, carimba data/hora/loja na imagem e
 // recusa fotos antigas da galeria (a foto tem que ser tirada na hora).
 const Foto = (() => {
-  const LADO_MAX = 1280;
+  const LADO_MAX = 1100;
   const IDADE_MAX_MIN = 20;
 
   function carregarImagem(file) {
