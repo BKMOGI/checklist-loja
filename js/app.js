@@ -603,14 +603,37 @@
     if (grupoOk && precisaGrupo) n++;
 
     const bloqueado = precisaGrupo && !grupoOk;
-    const enviado = !!reg.enviadoEm;
-    const passoGerencia = `<div class="card passo ${enviado ? "feito" : ""}">
+    const travar = bloqueado ? "disabled style='opacity:.45'" : "";
+    const lista = gerentes();
+    let passoGerencia;
+    if (lista.length) {
+      // Um botão por gerente: abre o WhatsApp já na conversa da pessoa, com o resumo e o link do PDF.
+      const enviados = reg.enviados || {};
+      const chave = (g) => numeroWhats(g.numero);
+      const todos = lista.every((g) => enviados[chave(g)]);
+      const semLink = Sync.configurado() && !reg.sync?.pdfUrl;
+      const botoes = lista.map((g, i) => {
+        const em = enviados[chave(g)];
+        return `<button class="btn ${em ? "btn-secondary" : "btn-whats"}" data-acao="enviar" data-ger="${i}" ${travar}>💬 ${em ? `Enviado para ${esc(g.nome)} às ${hora(em)} · enviar de novo` : `Enviar para ${esc(g.nome)}`}</button>`;
+      }).join("");
+      passoGerencia = `<div class="card passo ${todos ? "feito" : ""}">
+        <div class="num">${todos ? "✓" : n}</div>
+        <div class="conteudo"><h3>Enviar o relatório para a gerência</h3>
+          <p>${bloqueado ? "Primeiro avise o grupo da loja (passo acima)." : todos ? "Enviado para todos os gerentes." : "Cada botão abre a conversa do gerente com o resumo e o link do PDF prontos. É só tocar em Enviar no WhatsApp."}</p>
+          ${semLink && !bloqueado ? `<p style="color:var(--warn)">⏳ Preparando o link do PDF… Se enviar agora, vai só o resumo.</p>` : ""}
+          ${botoes}
+          <button class="btn btn-secondary" data-acao="gerencia" ${travar}>📄 Compartilhar o PDF (escolher contato)</button>
+        </div></div>`;
+    } else {
+      const enviado = !!reg.enviadoEm;
+      passoGerencia = `<div class="card passo ${enviado ? "feito" : ""}">
         <div class="num">${enviado ? "✓" : n}</div>
         <div class="conteudo"><h3>Enviar o relatório para a gerência</h3>
           <p>${enviado ? `Enviado às ${hora(reg.enviadoEm)}.` : bloqueado ? "Primeiro avise o grupo da loja (passo acima)." : "Envia o PDF com tudo preenchido e as fotos pelo WhatsApp."}</p>
-          <button class="btn ${enviado ? "btn-secondary" : "btn-whats"}" data-acao="gerencia" ${bloqueado ? "disabled style='opacity:.45'" : ""}>📄 ${enviado ? "Enviar de novo" : "Enviar relatório (PDF)"}</button>
-          <button class="btn btn-secondary" data-acao="texto" ${bloqueado ? "disabled style='opacity:.45'" : ""}>Enviar só o resumo em texto</button>
+          <button class="btn ${enviado ? "btn-secondary" : "btn-whats"}" data-acao="gerencia" ${travar}>📄 ${enviado ? "Enviar de novo" : "Enviar relatório (PDF)"}</button>
+          <button class="btn btn-secondary" data-acao="texto" ${travar}>Enviar só o resumo em texto</button>
         </div></div>`;
+    }
 
     let nuvem = "";
     if (Sync.configurado()) {
@@ -665,7 +688,7 @@
     return true;
   }
 
-  async function acaoConcluido(acao) {
+  async function acaoConcluido(acao, btn) {
     if (acao === "inicio") return renderHome();
     if (acao === "pdf") {
       const blob = await pdfAtual();
@@ -680,9 +703,21 @@
       if (ok) { reg.avisoGrupoEm = Date.now(); await Db.salvar(reg); renderConcluido(); sincronizar(false); }
       return;
     }
+    if (acao === "enviar") {
+      const g = gerentes()[Number(btn.dataset.ger)];
+      if (!g) return;
+      const link = reg.sync?.pdfUrl;
+      const texto = Relatorio.textoResumo(reg) + (link ? `\n\n📄 Relatório completo em PDF:\n${link}` : "");
+      abrirWhats(texto, g.numero);
+      reg.enviados = { ...(reg.enviados || {}), [numeroWhats(g.numero)]: Date.now() };
+      reg.enviadoEm = reg.enviadoEm || Date.now();
+      await Db.salvar(reg);
+      return renderConcluido();
+    }
     if (acao === "gerencia" || acao === "texto") {
       const texto = Relatorio.textoResumo(reg);
-      const ok = acao === "gerencia" ? await compartilharPdf(texto, cfg.whats) : (abrirWhats(texto, cfg.whats), true);
+      const numero = gerentes()[0]?.numero;
+      const ok = acao === "gerencia" ? await compartilharPdf(texto, numero) : (abrirWhats(texto, numero), true);
       if (ok) { reg.enviadoEm = Date.now(); await Db.salvar(reg); renderConcluido(); }
     }
   }
@@ -923,13 +958,31 @@
   function renderConfig() {
     mostrar("config", "Configurações");
     $("#cfg-loja").value = cfg.loja || "";
-    $("#cfg-whats").value = cfg.whats || "";
+    $("#cfg-gerentes").value = gerentes().map((g) => `${g.nome} | ${g.numero}`).join("\n");
+    contarGerentes();
     $("#cfg-geladeiras").value = (cfg.geladeiras && cfg.geladeiras.length ? cfg.geladeiras : GELADEIRAS_PADRAO).join("\n");
     contarGeladeiras();
     $("#cfg-url").value = cfg.syncUrl || "";
     $("#cfg-chave").value = cfg.syncChave || "";
     $("#cfg-gerencia").checked = !!cfg.gerencia;
     $("#cfg-painel-status").innerHTML = Sync.configurado() ? `<div class="status-box success">☁️ Conectado ao painel.</div>` : "";
+  }
+
+  // "Vanessa | (11) 95025-6169" → { nome, numero }. Linha sem número válido é ignorada.
+  function lerGerentes(texto) {
+    return String(texto || "").split("\n").map((l) => {
+      const [nome, num] = l.split("|").map((s) => (s || "").trim());
+      const digitos = (num || "").replace(/\D/g, "");
+      return nome && digitos.length >= 10 ? { nome, numero: num } : null;
+    }).filter(Boolean);
+  }
+  // Lista em uso; quem configurou antes só com um número continua funcionando.
+  function gerentes() {
+    if (cfg.gerentes && cfg.gerentes.length) return cfg.gerentes;
+    return cfg.whats ? [{ nome: "Gerência", numero: cfg.whats }] : [];
+  }
+  function contarGerentes() {
+    $("#cfg-ger-qtd").textContent = lerGerentes($("#cfg-gerentes").value).length;
   }
 
   function lerGeladeiras() {
@@ -941,7 +994,9 @@
 
   function salvarConfig() {
     cfg.loja = $("#cfg-loja").value.trim();
-    cfg.whats = $("#cfg-whats").value.trim();
+    cfg.gerentes = lerGerentes($("#cfg-gerentes").value);
+    const invalidos = $("#cfg-gerentes").value.split("\n").filter((l) => l.trim()).length - cfg.gerentes.length;
+    if (invalidos > 0) return toast("Confira a lista de gerentes: cada linha precisa de nome | número com DDD.", 4500);
     cfg.geladeiras = lerGeladeiras();
     aplicarGeladeiras(cfg.geladeiras);
     cfg.syncUrl = $("#cfg-url").value.trim();
@@ -969,7 +1024,7 @@
 
   // gerente = true: o celular que abrir o link já fica com o Painel da gerência ligado.
   function linkConexao(gerente) {
-    const d = { u: $("#cfg-url").value.trim(), k: $("#cfg-chave").value.trim(), w: $("#cfg-whats").value.trim(), g: lerGeladeiras(), l: $("#cfg-loja").value.trim() };
+    const d = { u: $("#cfg-url").value.trim(), k: $("#cfg-chave").value.trim(), r: lerGerentes($("#cfg-gerentes").value), g: lerGeladeiras(), l: $("#cfg-loja").value.trim() };
     if (gerente) d.m = 1;
     const dados = btoa(unescape(encodeURIComponent(JSON.stringify(d))));
     return `${location.origin}${location.pathname}?conectar=${encodeURIComponent(dados)}`;
@@ -993,7 +1048,8 @@
       const d = JSON.parse(decodeURIComponent(escape(atob(p))));
       cfg.syncUrl = d.u;
       cfg.syncChave = d.k;
-      if (d.w) cfg.whats = d.w;
+      if (d.w) cfg.whats = d.w; // links antigos (um número só)
+      if (d.r && d.r.length) cfg.gerentes = d.r;
       if (d.g && d.g.length) cfg.geladeiras = d.g;
       if (d.l && !cfg.loja) cfg.loja = d.l;
       if (d.m) cfg.gerencia = true;
@@ -1110,6 +1166,7 @@
     $("#btn-trocar-nome").addEventListener("click", renderConfig);
     $("#btn-salvar-config").addEventListener("click", salvarConfig);
     $("#cfg-geladeiras").addEventListener("input", contarGeladeiras);
+    $("#cfg-gerentes").addEventListener("input", contarGerentes);
     $("#btn-testar").addEventListener("click", testarConexao);
     $("#btn-link-loja").addEventListener("click", enviarLinkLoja);
     $("#btn-link-gerente").addEventListener("click", enviarLinkGerente);
@@ -1136,7 +1193,7 @@
 
     $("#concluido-conteudo").addEventListener("click", (e) => {
       const t = e.target.closest("[data-acao]");
-      if (t && !t.disabled) acaoConcluido(t.dataset.acao);
+      if (t && !t.disabled) acaoConcluido(t.dataset.acao, t);
     });
 
     $("#painel-conteudo").addEventListener("click", (e) => {
