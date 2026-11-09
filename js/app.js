@@ -189,7 +189,13 @@
     const secoes = d.secoes.map((s) => ({ tipo: "secao", titulo: s.titulo, secao: s }));
     const final = { tipo: "final", titulo: "Revisar e finalizar" };
     if (d.categoria === "loja" || d.categoria === "atividade") return [quem, ...secoes, ...(d.fotos.length ? [{ tipo: "fotos", titulo: "Fotos obrigatórias" }] : []), final];
-    if (d.categoria === "caixa") return [quem, { tipo: "contagem", titulo: "Contagem do dinheiro" }, ...secoes, final];
+    if (d.categoria === "caixa") {
+      const contagem = { tipo: "contagem", titulo: "Contagem do dinheiro" };
+      // Fechamento: foto e valor líquido do relatório do PDV, que sai depois das checagens.
+      if (d.liquido) return [quem, contagem, ...secoes, { tipo: "liquido", titulo: "Relatório de fechamento do PDV" }, final];
+      // Abertura: foto do fundo logo depois de contar.
+      return [quem, contagem, ...(d.fotos.length ? [{ tipo: "fotos", titulo: "Foto do fundo de caixa" }] : []), ...secoes, final];
+    }
     if (d.categoria === "compras") return [quem, { tipo: "compras", titulo: "Itens para comprar" }];
     return [quem, { tipo: "ocorrencia", titulo: "O que aconteceu?" }];
   }
@@ -223,6 +229,10 @@
       contagem = "Tire as fotos agora pela câmera. Foto antiga da galeria não é aceita.";
       corpo = `<div class="fotos-grid">${def.fotos.map((f) => htmlSlot(f.id, f.texto, reg.fotos[f.id])).join("")}</div>`;
     } else if (e.tipo === "contagem") corpo = htmlContagem();
+    else if (e.tipo === "liquido") {
+      contagem = `Tire a foto do relatório e digite o valor líquido. O certo é ${brl(FUNDO_CAIXA_PADRAO)}; até ${brl(TOLERANCIA_CAIXA)} de diferença é troco.`;
+      corpo = htmlLiquido();
+    }
     else if (e.tipo === "compras") corpo = htmlCompras();
     else if (e.tipo === "ocorrencia") corpo = htmlOcorrencia();
     else if (e.tipo === "final") corpo = htmlFinal();
@@ -372,6 +382,32 @@
       </div>`;
   }
 
+  // --- Relatório de fechamento do PDV ---
+  function htmlLiquido() {
+    const f = def.fotos[0];
+    const v = reg.caixa.liquido;
+    return `<div class="fotos-grid" style="margin-bottom:12px">${htmlSlot(f.id, f.texto, reg.fotos[f.id])}</div>
+      <div class="card" data-id="liquido">
+        <h3>Valor líquido do relatório</h3>
+        <label class="campo" style="margin:8px 0 0">Digite o valor que aparece no relatório
+          <input type="text" inputmode="decimal" data-liquido="1" value="${v != null && v !== "" ? String(v).replace(".", ",") : ""}" placeholder="Ex.: 199,99" style="font-size:20px;font-weight:700" />
+        </label>
+        <div id="liquido-resultado">${htmlLiquidoResultado()}</div>
+      </div>`;
+  }
+
+  function htmlLiquidoResultado() {
+    const c = Relatorio.calcLiquido(reg.caixa.liquido);
+    if (c.liquido == null) return "";
+    const txt = Relatorio.textoLiquido(c);
+    if (!c.foraTolerancia) {
+      return `<div class="status-box success" style="margin:12px 0 0">✓ ${esc(txt)}${c.situacao === "confere" ? "" : ` (dentro da tolerância de ${brl(TOLERANCIA_CAIXA)})`}</div>`;
+    }
+    return `<div class="status-box ${c.situacao === "faltando" ? "error" : "warn"}" style="margin:12px 0 0">⚠ ${esc(txt)}. Diferença acima de ${brl(TOLERANCIA_CAIXA)}: a justificativa é obrigatória.</div>
+      <label class="campo" data-id="obsLiquido" style="margin-top:10px">Justificativa (obrigatório)
+        <textarea data-campo="caixa.obsLiquido" placeholder="Ex.: troco dado a mais para cliente, conferido com o gerente">${esc(reg.caixa.obsLiquido || "")}</textarea></label>`;
+  }
+
   function htmlObsSangria() {
     return `<label class="campo" data-id="obsDiferenca" style="margin-top:10px">Sangria diferente da sugerida — explique
       <textarea data-campo="caixa.obsDiferenca" placeholder="Ex.: troco alto hoje, mantive mais no caixa">${esc(reg.caixa.obsDiferenca)}</textarea></label>`;
@@ -423,7 +459,9 @@
       caixa = `<div class="card"><div class="linha-valor"><span>Total contado</span><b>${brl(a.caixa.total)}</b></div>
         ${def.modoCaixa === "fechamento" ? `<div class="linha-valor"><span>Sangria</span><b>${brl(a.caixa.sangria)}</b></div>
         <div class="linha-valor"><span>Fundo próximo turno</span><b>${brl(a.caixa.fundo)}</b></div>
-        <div class="linha-valor"><span>Malote entregue para</span><b>${esc(reg.caixa.entreguePara)}</b></div>` : ""}</div>`;
+        <div class="linha-valor"><span>Malote entregue para</span><b>${esc(reg.caixa.entreguePara)}</b></div>` : ""}
+        ${a.caixa.liquido != null ? `<div class="linha-valor"><span>Líquido do relatório</span><b>${brl(a.caixa.liquido)}</b></div>
+        <div class="linha-valor"><span>Resultado</span><b style="color:${a.caixa.foraTolerancia ? "var(--danger)" : "var(--accent)"}">${esc(Relatorio.textoLiquido(a.caixa))}</b></div>` : ""}</div>`;
     }
     return `
       <div class="resumo-final">
@@ -444,6 +482,13 @@
   function validar(e) {
     const erros = [];
     if (e.tipo === "quem" && !reg.responsavel.trim()) erros.push({ id: "responsavel", msg: "Informe seu nome" });
+    if (e.tipo === "liquido") {
+      const f = def.fotos[0];
+      if (!reg.fotos[f.id]) erros.push({ id: f.id, msg: "Tire a foto do relatório de fechamento" });
+      const c = Relatorio.calcLiquido(reg.caixa.liquido);
+      if (c.liquido == null) erros.push({ id: "liquido", msg: "Digite o valor líquido do relatório" });
+      else if (c.foraTolerancia && !(reg.caixa.obsLiquido || "").trim()) erros.push({ id: "obsLiquido", msg: "Justifique a diferença no caixa" });
+    }
     if (e.tipo === "secao") {
       for (const it0 of e.secao.itens) {
         const it = { ...it0, tipo: it0.tipo || "check" };
@@ -852,6 +897,22 @@
       const box = $("#obs-sangria");
       if (difere && !box.innerHTML) box.innerHTML = htmlObsSangria();
       if (!difere) box.innerHTML = "";
+      return salvarDepois();
+    }
+    if (ds.liquido) {
+      // "199,99" ou "199.99"; com vírgula, ponto é milhar ("1.234,56").
+      const txt = t.value.trim();
+      const v = txt === "" ? null : parseFloat(txt.includes(",") ? txt.replace(/\./g, "").replace(",", ".") : txt);
+      const antes = Relatorio.calcLiquido(reg.caixa.liquido).foraTolerancia;
+      reg.caixa.liquido = v != null && isNaN(v) ? null : v;
+      const depois = Relatorio.calcLiquido(reg.caixa.liquido).foraTolerancia;
+      const box = $("#liquido-resultado");
+      if (antes && depois) {
+        // Continua fora da tolerância: troca só o aviso e mantém a justificativa digitada.
+        const novo = document.createElement("div");
+        novo.innerHTML = htmlLiquidoResultado();
+        $(".status-box", box).replaceWith($(".status-box", novo));
+      } else box.innerHTML = htmlLiquidoResultado();
       return salvarDepois();
     }
     if (ds.compraDesc != null) { reg.compras.itens[ds.compraDesc].desc = t.value; return salvarDepois(); }

@@ -12,6 +12,8 @@
 //   novo: true    → item que não existia no formulário em papel
 
 const FUNDO_CAIXA_PADRAO = 200;
+// Diferença aceita entre o líquido do relatório do PDV e o fundo (troco). Acima disso, justificativa obrigatória.
+const TOLERANCIA_CAIXA = 2;
 const RESPONSAVEIS_MALOTE = ["Climério", "Vanessa", "Mariana", "Eliane"];
 const DENOMINACOES = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05];
 
@@ -191,7 +193,7 @@ const CHECKLISTS = {
         ],
       },
     ],
-    fotos: [],
+    fotos: [{ id: "f_fundo", texto: "Fundo de caixa contado (notas e moedas)" }],
   },
 
   abertura_caixa_tarde: {
@@ -209,7 +211,7 @@ const CHECKLISTS = {
         ],
       },
     ],
-    fotos: [],
+    fotos: [{ id: "f_fundo", texto: "Fundo de caixa contado (notas e moedas)" }],
   },
 
   fechamento_caixa_tarde: {
@@ -230,7 +232,8 @@ const CHECKLISTS = {
         ],
       },
     ],
-    fotos: [],
+    liquido: true,
+    fotos: [{ id: "f_relatorio", texto: "Relatório de fechamento do PDV (com o valor líquido)" }],
   },
 
   fechamento_caixa_noite: {
@@ -251,7 +254,8 @@ const CHECKLISTS = {
         ],
       },
     ],
-    fotos: [],
+    liquido: true,
+    fotos: [{ id: "f_relatorio", texto: "Relatório de fechamento do PDV (com o valor líquido)" }],
   },
 
   recebimento_caminhao: {

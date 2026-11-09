@@ -8,8 +8,8 @@ App para celular (PWA) com os check-lists diários da loja. Funciona sem interne
 |---|---|---|
 | Abertura de Loja | BKF03 | Visor de **cada geladeira** e da câmara fria (junto com a temperatura), fachada com a placa de ABERTO, salão, banheiro |
 | Fechamento de Loja | BKF04 | Salão, expositores, **ar-condicionado desligado**, forno e estufa, TV e luzes, porta trancada |
-| Abertura de Caixa (manhã e tarde) | BKF07 / BKF08 | — |
-| Fechamento de Caixa (tarde e noite) | BKF06 / BKF05 | — |
+| Abertura de Caixa (manhã e tarde) | BKF07 / BKF08 | Fundo de caixa contado |
+| Fechamento de Caixa (tarde e noite) | BKF06 / BKF05 | Relatório de fechamento do PDV |
 | Recebimento do Caminhão (1x por semana) | — | Câmara fria organizada (visão geral e prateleiras) |
 | Limpeza dos Freezers (a cada 15 dias) | — | Freezer vazio e limpo, freezer religado e reabastecido |
 | Reportar Ocorrência | — | Opcionais |
@@ -27,6 +27,7 @@ Regras:
 - Todo item precisa ser respondido: **Feito**, **Pendência** (com descrição obrigatória) ou **Não se aplica**, este só nos itens em que faz sentido (ex.: bandeiras com chuva).
 - Temperaturas: cada geladeira/freezer tem o seu cartão com a temperatura e a foto do visor (11 por padrão; a lista de nomes fica em ⚙ Ajustes e vai junto no link de conexão). Passa sem justificativa de **-10 °C a -19 °C**. A geladeira do **croissant** (com "croissant" no nome) aceita até **-22 °C**, e outro limite pode ser escrito depois de uma barra (ex.: `Geladeira 7 - Croissant | -22`). Fora da faixa, seja mais quente ou mais frio (gasto de energia), a justificativa é obrigatória.
 - As fotos são tiradas pela câmera do próprio app (não sai do app, então nada se perde) e cada uma recebe data, hora, loja e nome gravados. Na primeira vez o celular pergunta se pode usar a câmera: tocar em **Permitir**.
+- Caixa: no fechamento, a pessoa fotografa o relatório do PDV e digita o **valor líquido**. O certo é R$ 200: acima disso **está faltando** dinheiro no caixa, abaixo **está sobrando**. Até R$ 2,00 de diferença é troco. Acima disso, a justificativa é obrigatória e vira alerta no relatório e no aviso do grupo.
 - Caixa: a pessoa digita a quantidade de cada nota e moeda e o app soma. No fechamento, o app sugere a sangria (o que passar de R$ 200) e calcula o fundo do próximo turno.
 - Quando há pendências, o app obriga a avisar o grupo da loja antes de liberar o envio do relatório para a gerência.
 - Se o app fechar no meio, o check-list continua de onde parou.

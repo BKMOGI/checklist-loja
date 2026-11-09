@@ -18,7 +18,24 @@ const Relatorio = (() => {
     }
     const sugerida = Math.max(0, Math.round((total - FUNDO_CAIXA_PADRAO) * 100) / 100);
     const sangria = reg.caixa?.sangria != null && reg.caixa.sangria !== "" ? Number(reg.caixa.sangria) : sugerida;
-    return { total, sugerida, sangria, fundo: Math.round((total - sangria) * 100) / 100 };
+    const c = { total, sugerida, sangria, fundo: Math.round((total - sangria) * 100) / 100 };
+    if (def.liquido) Object.assign(c, calcLiquido(reg.caixa?.liquido));
+    return c;
+  }
+
+  // Líquido do relatório de fechamento do PDV × fundo de R$ 200.
+  // Acima do fundo = está faltando dinheiro no caixa; abaixo = está sobrando.
+  function calcLiquido(valor) {
+    if (valor == null || valor === "" || isNaN(Number(valor))) return { liquido: null };
+    const liquido = Math.round(Number(valor) * 100) / 100;
+    const difLiquido = Math.round((liquido - FUNDO_CAIXA_PADRAO) * 100) / 100;
+    const situacao = difLiquido > 0 ? "faltando" : difLiquido < 0 ? "sobrando" : "confere";
+    return { liquido, difLiquido, situacao, foraTolerancia: Math.abs(difLiquido) > TOLERANCIA_CAIXA };
+  }
+
+  function textoLiquido(c) {
+    if (c.situacao === "confere") return `Confere com o fundo de ${brl(FUNDO_CAIXA_PADRAO)}`;
+    return `${c.situacao === "faltando" ? "Faltando" : "Sobrando"} ${brl(Math.abs(c.difLiquido))} no caixa`;
   }
 
   function analisar(reg) {
@@ -36,6 +53,10 @@ const Relatorio = (() => {
       else if (resp.status === "alerta") { r.alertas.push(linha); r.ok++; }
     }
     r.caixa = calcCaixa(reg, def);
+    // Diferença acima da tolerância no relatório do PDV entra como alerta (vai para o aviso do grupo).
+    if (r.caixa?.foraTolerancia) {
+      r.alertas.push({ texto: `Diferença no caixa: ${textoLiquido(r.caixa)} (líquido ${brl(r.caixa.liquido)})`, obs: reg.caixa.obsLiquido || "", tipo: "caixa" });
+    }
     return r;
   }
 
@@ -91,7 +112,8 @@ const Relatorio = (() => {
       a.pendencias.forEach((p) => linhas.push(`• ${p.texto}${p.obs ? `\n   ↳ ${p.obs}` : ""}`));
     }
     if (a.alertas.length) {
-      linhas.push("", "*Atenção:*");
+      if (a.pendencias.length) linhas.push("");
+      linhas.push("*Atenção:*");
       a.alertas.forEach((p) => linhas.push(`• ${p.texto}${p.valor != null && p.tipo === "temp" ? ` (${String(p.valor).replace(".", ",")} °C)` : ""}${p.obs ? `\n   ↳ ${p.obs}` : ""}`));
     }
     linhas.push("", "Quem assumir o próximo turno, por favor verificar. 🙏");
@@ -128,6 +150,9 @@ const Relatorio = (() => {
         l.push(`🏦 Fundo p/ próximo turno: *${brl(a.caixa.fundo)}*`);
         l.push(`🤝 Malote entregue para: ${reg.caixa.entreguePara}`);
         if (Math.abs(a.caixa.sangria - a.caixa.sugerida) > 0.009) l.push(`⚠️ Sangria diferente da sugerida (${brl(a.caixa.sugerida)}): ${reg.caixa.obsDiferenca}`);
+        if (a.caixa.liquido != null) {
+          l.push(`🧾 Líquido do relatório do PDV: *${brl(a.caixa.liquido)}* · ${textoLiquido(a.caixa)}${a.caixa.foraTolerancia ? " ⚠️" : a.caixa.situacao === "confere" ? " ✓" : ` (dentro da tolerância de ${brl(TOLERANCIA_CAIXA)})`}`);
+        }
       }
     }
     if (a.pendencias.length) {
@@ -306,6 +331,12 @@ const Relatorio = (() => {
           if (Math.abs(a.caixa.sangria - a.caixa.sugerida) > 0.009) {
             paragrafo(`Obs.: sangria diferente da sugerida (${brl(a.caixa.sugerida)}). ${reg.caixa.obsDiferenca || ""}`, LARANJA, 9);
           }
+          if (a.caixa.liquido != null) {
+            y += 2;
+            linhaValor("Líquido do relatório do PDV", brl(a.caixa.liquido), true);
+            linhaValor("Resultado", textoLiquido(a.caixa));
+            if (a.caixa.foraTolerancia) paragrafo(`Diferença acima de ${brl(TOLERANCIA_CAIXA)}. Justificativa: ${reg.caixa.obsLiquido || ""}`, LARANJA, 9.5, true);
+          }
         }
       }
 
@@ -323,6 +354,7 @@ const Relatorio = (() => {
     const rotuloExtra = def.categoria === "ocorrencia" ? "Foto da ocorrência" : "Foto adicional";
     reg.extras.forEach((f, i) => fotos.push({ leg: f.legenda || `${rotuloExtra} ${i + 1}`, ...f }));
     if (fotos.length) {
+      garantir(115); // título "Fotos" não fica sozinho no fim da página
       titulo("Fotos");
       const fw = (CW - 6) / 2;
       const FH_MAX = 95;
@@ -361,5 +393,5 @@ const Relatorio = (() => {
     return `${slug}_${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}_${p(d.getHours())}h${p(d.getMinutes())}.pdf`;
   }
 
-  return { analisar, calcCaixa, totalCaixa, textoResumo, textoAvisoGrupo, gerarPdf, nomeArquivo, brl, dataHora, hora, data, dataIso };
+  return { analisar, calcCaixa, calcLiquido, textoLiquido, totalCaixa, textoResumo, textoAvisoGrupo, gerarPdf, nomeArquivo, brl, dataHora, hora, data, dataIso };
 })();
