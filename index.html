@@ -67,8 +67,15 @@
       </label>
     </div>
     <div class="card">
+      <h3>Grupo dos relatórios</h3>
+      <p class="hint">Nome do grupo do WhatsApp para onde vai o PDF com o resumo. Aparece no botão de envio.</p>
+      <label class="campo">Nome do grupo
+        <input type="text" id="cfg-grupo" placeholder="Relatórios BK" />
+      </label>
+    </div>
+    <div class="card">
       <h3>Gerentes que recebem os relatórios</h3>
-      <p class="hint">Um por linha: nome, uma barra e o WhatsApp com DDD. No fim de cada check-list aparece um botão para cada um, que já abre a conversa da pessoa.</p>
+      <p class="hint">Reserva, caso o PDF não possa ser enviado: um por linha, com nome, uma barra e o WhatsApp com DDD. Cada um ganha um botão que abre a conversa com o resumo e o link do PDF.</p>
       <label class="campo">Lista (<span id="cfg-ger-qtd">0</span>)
         <textarea id="cfg-gerentes" rows="3" placeholder="Vanessa | (11) 90000-0000&#10;Climério | (11) 90000-0000"></textarea>
       </label>
