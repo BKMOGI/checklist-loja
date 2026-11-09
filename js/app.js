@@ -604,28 +604,20 @@
 
     const bloqueado = precisaGrupo && !grupoOk;
     const travar = bloqueado ? "disabled style='opacity:.45'" : "";
-    // Principal: PDF + resumo juntos pelo compartilhar do celular, para o grupo dos gerentes.
-    // Reserva: um botão por gerente, que abre a conversa dele com o resumo e o link do PDF.
+    // O WhatsApp descarta o texto que vai junto com um PDF, então são dois envios
+    // para o grupo dos gerentes: primeiro o PDF, depois o resumo. Cada um abre a
+    // tela de compartilhar do celular para escolher o grupo (ou outro contato).
     const grupo = cfg.grupoRelatorios || "Relatórios BK";
-    const lista = gerentes();
-    const enviados = reg.enviados || {};
-    const chave = (g) => numeroWhats(g.numero);
-    const enviado = !!reg.enviadoPdfEm || (lista.length > 0 && lista.every((g) => enviados[chave(g)]));
-    const semLink = Sync.configurado() && !reg.sync?.pdfUrl;
-    const botoesReserva = lista.map((g, i) => {
-      const em = enviados[chave(g)];
-      return `<button class="btn btn-secondary" data-acao="enviar" data-ger="${i}" ${travar}>💬 ${em ? `Resumo enviado para ${esc(g.nome)} às ${hora(em)}` : `Só o resumo para ${esc(g.nome)}`}</button>`;
-    }).join("");
+    const pdfEm = reg.enviadoPdfEm, resumoEm = reg.enviadoResumoEm;
+    const enviado = !!(pdfEm && resumoEm);
     const passoGerencia = `<div class="card passo ${enviado ? "feito" : ""}">
         <div class="num">${enviado ? "✓" : n}</div>
         <div class="conteudo"><h3>Enviar o relatório para a gerência</h3>
           <p>${bloqueado ? "Primeiro avise o grupo da loja (passo acima)."
-            : reg.enviadoPdfEm ? `PDF e resumo enviados às ${hora(reg.enviadoPdfEm)}.`
-            : `Toque no botão, escolha <b>WhatsApp</b> e o grupo <b>${esc(grupo)}</b>. O PDF e o resumo vão juntos numa mensagem só.`}</p>
-          <button class="btn ${reg.enviadoPdfEm ? "btn-secondary" : "btn-whats"}" data-acao="gerencia" ${travar}>📄 ${reg.enviadoPdfEm ? "Enviar de novo" : `Enviar PDF + resumo para ${esc(grupo)}`}</button>
-          ${lista.length ? `<p style="margin-top:6px">Se não der para enviar o arquivo, mande o resumo com o link do PDF direto para cada um:</p>
-          ${semLink && !bloqueado ? `<p style="color:var(--warn)">⏳ Preparando o link do PDF… Se enviar agora, vai só o resumo.</p>` : ""}
-          ${botoesReserva}` : `<button class="btn btn-secondary" data-acao="texto" ${travar}>Enviar só o resumo em texto</button>`}
+            : enviado ? `PDF e resumo enviados para ${esc(grupo)}.`
+            : `Mande as duas coisas no grupo <b>${esc(grupo)}</b>: primeiro o PDF, depois o resumo. Em cada uma, escolha <b>WhatsApp</b> e o grupo.`}</p>
+          <button class="btn ${pdfEm ? "btn-secondary" : "btn-whats"}" data-acao="gerencia" ${travar}>📄 ${pdfEm ? `PDF enviado às ${hora(pdfEm)} · enviar de novo` : "1. Enviar o PDF"}</button>
+          <button class="btn ${resumoEm ? "btn-secondary" : "btn-whats"}" data-acao="resumo" ${travar}>💬 ${resumoEm ? `Resumo enviado às ${hora(resumoEm)} · enviar de novo` : "2. Enviar o resumo"}</button>
         </div></div>`;
 
     let nuvem = "";
@@ -659,14 +651,14 @@
     window.open(`https://wa.me/${numeroWhats(numero)}?text=${encodeURIComponent(texto)}`, "_blank");
   }
 
-  // Compartilha o PDF (Android/iPhone abrem a lista de apps → WhatsApp).
-  // Sem suporte a compartilhar arquivo: baixa o PDF e abre o WhatsApp com o texto.
-  async function compartilharPdf(texto, numero) {
+  // Compartilha o PDF (Android/iPhone abrem a lista de apps → WhatsApp → grupo).
+  // Sem suporte a compartilhar arquivo: baixa o PDF para anexar na conversa.
+  async function compartilharPdf() {
     const blob = await pdfAtual();
     const file = new File([blob], Relatorio.nomeArquivo(reg), { type: "application/pdf" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        await navigator.share({ files: [file], text: texto, title: def.titulo });
+        await navigator.share({ files: [file], title: def.titulo });
         return true;
       } catch (e) {
         if (e.name === "AbortError") return false;
@@ -677,11 +669,25 @@
     a.download = file.name;
     a.click();
     toast("PDF salvo no aparelho — anexe na conversa do WhatsApp.", 4500);
-    abrirWhats(texto, numero);
     return true;
   }
 
-  async function acaoConcluido(acao, btn) {
+  // Texto pela tela de compartilhar (escolhe o grupo ou o contato). Sem ela,
+  // abre o WhatsApp para escolher a conversa.
+  async function compartilharTexto(texto) {
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: texto });
+        return true;
+      } catch (e) {
+        if (e.name === "AbortError") return false;
+      }
+    }
+    abrirWhats(texto);
+    return true;
+  }
+
+  async function acaoConcluido(acao) {
     if (acao === "inicio") return renderHome();
     if (acao === "pdf") {
       const blob = await pdfAtual();
@@ -690,30 +696,15 @@
     }
     if (acao === "sync") return sincronizar(true);
     if (acao === "grupo") {
-      const ok = def.categoria === "ocorrencia"
-        ? await compartilharPdf(Relatorio.textoResumo(reg))
-        : (abrirWhats(Relatorio.textoAvisoGrupo(reg)), true);
+      const ok = await compartilharTexto(def.categoria === "ocorrencia" ? Relatorio.textoResumo(reg) : Relatorio.textoAvisoGrupo(reg));
       if (ok) { reg.avisoGrupoEm = Date.now(); await Db.salvar(reg); renderConcluido(); sincronizar(false); }
       return;
     }
-    if (acao === "enviar") {
-      const g = gerentes()[Number(btn.dataset.ger)];
-      if (!g) return;
-      const link = reg.sync?.pdfUrl;
-      const texto = Relatorio.textoResumo(reg) + (link ? `\n\n📄 Relatório completo em PDF:\n${link}` : "");
-      abrirWhats(texto, g.numero);
-      reg.enviados = { ...(reg.enviados || {}), [numeroWhats(g.numero)]: Date.now() };
-      reg.enviadoEm = reg.enviadoEm || Date.now();
-      await Db.salvar(reg);
-      return renderConcluido();
-    }
-    if (acao === "gerencia" || acao === "texto") {
-      const texto = Relatorio.textoResumo(reg);
-      const numero = gerentes()[0]?.numero;
-      const ok = acao === "gerencia" ? await compartilharPdf(texto, numero) : (abrirWhats(texto, numero), true);
+    if (acao === "gerencia" || acao === "resumo") {
+      const ok = acao === "gerencia" ? await compartilharPdf(null) : await compartilharTexto(Relatorio.textoResumo(reg));
       if (ok) {
         reg.enviadoEm = reg.enviadoEm || Date.now();
-        if (acao === "gerencia") reg.enviadoPdfEm = Date.now();
+        reg[acao === "gerencia" ? "enviadoPdfEm" : "enviadoResumoEm"] = Date.now();
         await Db.salvar(reg);
         renderConcluido();
       }
@@ -957,31 +948,12 @@
     mostrar("config", "Configurações");
     $("#cfg-loja").value = cfg.loja || "";
     $("#cfg-grupo").value = cfg.grupoRelatorios || "Relatórios BK";
-    $("#cfg-gerentes").value = gerentes().map((g) => `${g.nome} | ${g.numero}`).join("\n");
-    contarGerentes();
     $("#cfg-geladeiras").value = (cfg.geladeiras && cfg.geladeiras.length ? cfg.geladeiras : GELADEIRAS_PADRAO).join("\n");
     contarGeladeiras();
     $("#cfg-url").value = cfg.syncUrl || "";
     $("#cfg-chave").value = cfg.syncChave || "";
     $("#cfg-gerencia").checked = !!cfg.gerencia;
     $("#cfg-painel-status").innerHTML = Sync.configurado() ? `<div class="status-box success">☁️ Conectado ao painel.</div>` : "";
-  }
-
-  // "Vanessa | (11) 95025-6169" → { nome, numero }. Linha sem número válido é ignorada.
-  function lerGerentes(texto) {
-    return String(texto || "").split("\n").map((l) => {
-      const [nome, num] = l.split("|").map((s) => (s || "").trim());
-      const digitos = (num || "").replace(/\D/g, "");
-      return nome && digitos.length >= 10 ? { nome, numero: num } : null;
-    }).filter(Boolean);
-  }
-  // Lista em uso; quem configurou antes só com um número continua funcionando.
-  function gerentes() {
-    if (cfg.gerentes && cfg.gerentes.length) return cfg.gerentes;
-    return cfg.whats ? [{ nome: "Gerência", numero: cfg.whats }] : [];
-  }
-  function contarGerentes() {
-    $("#cfg-ger-qtd").textContent = lerGerentes($("#cfg-gerentes").value).length;
   }
 
   function lerGeladeiras() {
@@ -994,9 +966,6 @@
   function salvarConfig() {
     cfg.loja = $("#cfg-loja").value.trim();
     cfg.grupoRelatorios = $("#cfg-grupo").value.trim() || "Relatórios BK";
-    cfg.gerentes = lerGerentes($("#cfg-gerentes").value);
-    const invalidos = $("#cfg-gerentes").value.split("\n").filter((l) => l.trim()).length - cfg.gerentes.length;
-    if (invalidos > 0) return toast("Confira a lista de gerentes: cada linha precisa de nome | número com DDD.", 4500);
     cfg.geladeiras = lerGeladeiras();
     aplicarGeladeiras(cfg.geladeiras);
     cfg.syncUrl = $("#cfg-url").value.trim();
@@ -1024,7 +993,7 @@
 
   // gerente = true: o celular que abrir o link já fica com o Painel da gerência ligado.
   function linkConexao(gerente) {
-    const d = { u: $("#cfg-url").value.trim(), k: $("#cfg-chave").value.trim(), r: lerGerentes($("#cfg-gerentes").value), gr: $("#cfg-grupo").value.trim(), g: lerGeladeiras(), l: $("#cfg-loja").value.trim() };
+    const d = { u: $("#cfg-url").value.trim(), k: $("#cfg-chave").value.trim(), gr: $("#cfg-grupo").value.trim(), g: lerGeladeiras(), l: $("#cfg-loja").value.trim() };
     if (gerente) d.m = 1;
     const dados = btoa(unescape(encodeURIComponent(JSON.stringify(d))));
     return `${location.origin}${location.pathname}?conectar=${encodeURIComponent(dados)}`;
@@ -1048,8 +1017,6 @@
       const d = JSON.parse(decodeURIComponent(escape(atob(p))));
       cfg.syncUrl = d.u;
       cfg.syncChave = d.k;
-      if (d.w) cfg.whats = d.w; // links antigos (um número só)
-      if (d.r && d.r.length) cfg.gerentes = d.r;
       if (d.gr) cfg.grupoRelatorios = d.gr;
       if (d.g && d.g.length) cfg.geladeiras = d.g;
       if (d.l && !cfg.loja) cfg.loja = d.l;
@@ -1167,7 +1134,6 @@
     $("#btn-trocar-nome").addEventListener("click", renderConfig);
     $("#btn-salvar-config").addEventListener("click", salvarConfig);
     $("#cfg-geladeiras").addEventListener("input", contarGeladeiras);
-    $("#cfg-gerentes").addEventListener("input", contarGerentes);
     $("#btn-testar").addEventListener("click", testarConexao);
     $("#btn-link-loja").addEventListener("click", enviarLinkLoja);
     $("#btn-link-gerente").addEventListener("click", enviarLinkGerente);
@@ -1194,7 +1160,7 @@
 
     $("#concluido-conteudo").addEventListener("click", (e) => {
       const t = e.target.closest("[data-acao]");
-      if (t && !t.disabled) acaoConcluido(t.dataset.acao, t);
+      if (t && !t.disabled) acaoConcluido(t.dataset.acao);
     });
 
     $("#painel-conteudo").addEventListener("click", (e) => {
