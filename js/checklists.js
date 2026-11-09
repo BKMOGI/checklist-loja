@@ -17,7 +17,20 @@ const DENOMINACOES = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05];
 
 // Geladeiras/freezers da loja — a lista pode ser alterada em Ajustes no app.
 const GELADEIRAS_PADRAO = Array.from({ length: 11 }, (_, i) => `Geladeira ${i + 1}`);
-const TEMP_MAX = -18;
+// Faixa aceita sem justificativa: de TEMP_MAX (mais quente) até TEMP_MIN (mais frio).
+// Mais frio que o mínimo também pede justificativa: é gasto de energia à toa.
+const TEMP_MAX = -10;
+const TEMP_MIN = -19;
+const TEMP_MIN_CROISSANT = -22; // freezer do croissant para assar pode ficar mais frio
+
+// Uma linha da lista de Ajustes: "Nome" ou "Nome | -22" (limite mais frio próprio).
+// Sem limite escrito, um nome com "croissant" usa o limite do croissant.
+function lerLinhaGeladeira(linha) {
+  const [nome, lim] = String(linha).split("|").map((s) => s.trim());
+  const n = parseFloat(String(lim || "").replace(",", "."));
+  const min = !isNaN(n) ? -Math.abs(n) : /croissant/i.test(nome) ? TEMP_MIN_CROISSANT : TEMP_MIN;
+  return { nome, min };
+}
 
 // Monta a etapa "Temperaturas" da abertura: uma temperatura + foto do visor por
 // geladeira, mais a câmara fria. O id usa a posição para o rascunho continuar
@@ -26,8 +39,11 @@ function aplicarGeladeiras(nomes) {
   const lista = nomes && nomes.length ? nomes : GELADEIRAS_PADRAO;
   const sec = CHECKLISTS.abertura_loja.secoes.find((s) => s.id === "temperaturas");
   sec.itens = [
-    ...lista.map((nome, i) => ({ id: `temp_gel_${i + 1}`, tipo: "temp", max: TEMP_MAX, foto: true, texto: nome })),
-    { id: "temp_camara", tipo: "temp", max: TEMP_MAX, foto: true, texto: "Câmara fria" },
+    ...lista.map((linha, i) => {
+      const { nome, min } = lerLinhaGeladeira(linha);
+      return { id: `temp_gel_${i + 1}`, tipo: "temp", max: TEMP_MAX, min, foto: true, texto: nome };
+    }),
+    { id: "temp_camara", tipo: "temp", max: TEMP_MAX, min: TEMP_MIN, foto: true, texto: "Câmara fria" },
   ];
 }
 
@@ -260,7 +276,7 @@ const CHECKLISTS = {
           { id: "caixas", texto: "Caixas abertas fechadas e identificadas" },
           { id: "vencidos", tipo: "lote", texto: "Retirar produtos vencidos ou avariados" },
           { id: "piso", texto: "Limpar piso e prateleiras" },
-          { id: "temp_final", tipo: "temp", max: -18, texto: "Temperatura da câmara fria ao terminar" },
+          { id: "temp_final", tipo: "temp", max: TEMP_MAX, min: TEMP_MIN, texto: "Temperatura da câmara fria ao terminar" },
         ],
       },
       {
@@ -299,7 +315,7 @@ const CHECKLISTS = {
           { id: "limpar", texto: "Limpar por dentro e por fora com pano, água e sabão neutro" },
           { id: "secar", texto: "Secar bem por dentro e as borrachas da tampa/porta" },
           { id: "religar", texto: "Religar e esperar atingir a temperatura antes de recolocar os produtos" },
-          { id: "temp_religado", tipo: "temp", max: -18, texto: "Temperatura do freezer antes de recolocar os produtos" },
+          { id: "temp_religado", tipo: "temp", max: TEMP_MAX, min: TEMP_MIN, texto: "Temperatura do freezer antes de recolocar os produtos" },
           { id: "recolocar", tipo: "lote", texto: "Recolocar os produtos pelo PEPS, conferindo as validades" },
         ],
       },

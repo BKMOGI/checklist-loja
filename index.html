@@ -61,7 +61,7 @@
     </div>
     <div class="card">
       <h3>Geladeiras e freezers</h3>
-      <p class="hint">Um nome por linha. Na abertura da loja, cada uma pede a temperatura e a foto do visor. Ex.: "Geladeira 3 - Pão de queijo".</p>
+      <p class="hint">Um nome por linha. Na abertura da loja, cada uma pede a temperatura e a foto do visor. Padrão sem justificativa: -10 a -19 °C. A geladeira com "croissant" no nome aceita até -22 °C. Para outro limite, escreva depois de uma barra, ex.: "Geladeira 7 - Croissant | -22".</p>
       <label class="campo">Lista (<span id="cfg-gel-qtd">0</span>)
         <textarea id="cfg-geladeiras" rows="8"></textarea>
       </label>
@@ -89,6 +89,8 @@
       <div id="cfg-painel-status"></div>
       <button class="btn btn-secondary" id="btn-testar">Testar conexão</button>
       <button class="btn btn-whats" id="btn-link-loja">💬 Enviar link de conexão para a loja</button>
+      <button class="btn btn-secondary" id="btn-link-gerente">👔 Enviar link de conexão para outro gerente</button>
+      <p class="hint" style="margin:0">O link para gerente já abre com o Painel da gerência ligado no celular dele.</p>
     </div>
     <button class="btn btn-primary" id="btn-salvar-config">Salvar</button>
   </section>

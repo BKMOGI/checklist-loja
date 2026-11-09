@@ -25,7 +25,7 @@ O que foi acrescentado aos formulários de papel aparece com a etiqueta **NOVO**
 
 Regras:
 - Todo item precisa ser respondido: **Feito**, **Pendência** (com descrição obrigatória) ou **Não se aplica**, este só nos itens em que faz sentido (ex.: bandeiras com chuva).
-- Temperaturas: cada geladeira/freezer tem o seu cartão com a temperatura e a foto do visor (11 por padrão; a lista de nomes fica em ⚙ Ajustes e vai junto no link de conexão). Acima de -18 °C vira alerta e é preciso explicar o que foi feito.
+- Temperaturas: cada geladeira/freezer tem o seu cartão com a temperatura e a foto do visor (11 por padrão; a lista de nomes fica em ⚙ Ajustes e vai junto no link de conexão). Passa sem justificativa de **-10 °C a -19 °C**. A geladeira do **croissant** (com "croissant" no nome) aceita até **-22 °C**, e outro limite pode ser escrito depois de uma barra (ex.: `Geladeira 7 - Croissant | -22`). Fora da faixa, seja mais quente ou mais frio (gasto de energia), a justificativa é obrigatória.
 - As fotos são tiradas pela câmera do próprio app (não sai do app, então nada se perde) e cada uma recebe data, hora, loja e nome gravados. Na primeira vez o celular pergunta se pode usar a câmera: tocar em **Permitir**.
 - Caixa: a pessoa digita a quantidade de cada nota e moeda e o app soma. No fechamento, o app sugere a sangria (o que passar de R$ 200) e calcula o fundo do próximo turno.
 - Quando há pendências, o app obriga a avisar o grupo da loja antes de liberar o envio do relatório para a gerência.
@@ -43,6 +43,8 @@ Regras:
 6. Clique em **Implantar** e copie o **URL do app da Web** (termina em `/exec`).
 7. No **seu celular**, abra o app e vá em ⚙ Ajustes. Em **Painel da gerência**, cole o link e a chave, marque **"Este celular é da gerência"**, toque em **Testar conexão** e depois em **Salvar**.
 8. Ainda em Ajustes, toque em **"Enviar link de conexão para a loja"** e mande para o WhatsApp do celular da loja. Lá, é só abrir o link uma vez para o app ficar conectado.
+
+**Outro gerente:** em ⚙ Ajustes, toque em **"Enviar link de conexão para outro gerente"**. No celular dele, o app já abre com o Painel ligado. Para ele abrir os PDFs sem pedir acesso toda vez, compartilhe **uma vez** a pasta **Check-list BK - Relatórios** do seu Drive com o e-mail dele (botão direito → Compartilhar → e-mail dele → Leitor). Os relatórios novos entram na pasta já liberados.
 
 Pronto. Cada check-list finalizado entra numa linha da aba **Registros** e o PDF com as fotos fica salvo no seu Drive, na pasta **Check-list BK - Relatórios** (uma subpasta por mês). No seu celular, o card **📊 Painel da gerência** mostra a rotina do dia de cada loja (o que foi feito, a que horas, por quem e com quantas pendências) e as ocorrências no topo.
 

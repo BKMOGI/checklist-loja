@@ -217,7 +217,7 @@
       const itens = e.secao.itens.map((i) => ({ ...i, tipo: i.tipo || "check" }));
       const feitos = itens.filter((i) => reg.respostas[i.id]?.status).length;
       contagem = `<span id="cont-secao">${feitos} de ${itens.length} itens respondidos</span>`;
-      if (itens.some((i) => i.foto)) contagem += `<br>Padrão: até ${TEMP_MAX} °C. Em cada uma, digite a temperatura e tire a foto do visor.`;
+      if (itens.some((i) => i.foto)) contagem += `<br>Padrão: ${TEMP_MAX} a ${TEMP_MIN} °C. Em cada uma, digite a temperatura e tire a foto do visor.`;
       corpo = itens.map(htmlItem).join("");
     } else if (e.tipo === "fotos") {
       contagem = "Tire as fotos agora pela câmera. Foto antiga da galeria não é aceita.";
@@ -296,10 +296,17 @@
       <button data-foto-item="${it.id}" class="refazer">Refazer</button></div>`;
   }
 
+  const faixaTemp = (it) => `${it.max} a ${it.min} °C`;
+  const tempOk = (it, v) => v <= it.max && (it.min == null || v >= it.min);
+
   function htmlAvisoTemp(it, r) {
-    if (r.valor == null || r.valor === "") return "";
-    if (r.status === "ok") return `<div class="aviso bom">✓ Dentro do padrão (até ${it.max} °C)</div>`;
-    return `<div class="aviso">⚠ Acima de ${it.max} °C! Informe o que foi feito.</div>
+    if (r.valor == null || r.valor === "") return `<div class="aviso" style="color:var(--text-dim)">Padrão: ${faixaTemp(it)}</div>`;
+    if (r.status === "ok") return `<div class="aviso bom">✓ Dentro do padrão (${faixaTemp(it)})</div>`;
+    if (it.min != null && r.valor < it.min) {
+      return `<div class="aviso">⚠ Mais frio que ${it.min} °C: gasto de energia à toa. Ajuste o termostato e informe.</div>
+      <textarea data-obs="${it.id}" placeholder="Ex.: termostato estava no máximo, ajustei para o padrão">${esc(r.obs)}</textarea>`;
+    }
+    return `<div class="aviso">⚠ Mais quente que ${it.max} °C! Informe o que foi feito.</div>
       <textarea data-obs="${it.id}" placeholder="Ex.: porta estava aberta, fechei e vou conferir de novo às 10h">${esc(r.obs)}</textarea>`;
   }
 
@@ -741,7 +748,7 @@
       reg.respostas[id] = { ...r, valor: null, status: "" };
     } else {
       const valor = r.sinal === "+" ? Math.abs(abs) : -Math.abs(abs);
-      reg.respostas[id] = { ...r, valor, status: valor <= it.max ? "ok" : "alerta" };
+      reg.respostas[id] = { ...r, valor, status: tempOk(it, valor) ? "ok" : "alerta" };
     }
     const nr = reg.respostas[id];
     const el = $(`#etapa-conteudo .item[data-id="${id}"]`);
@@ -751,6 +758,14 @@
     const tinhaObs = !!$("textarea", av);
     const precisaObs = nr.status === "alerta";
     if (tinhaObs !== precisaObs || !precisaObs) av.innerHTML = htmlAvisoTemp(it, nr);
+    else {
+      // Continua fora do padrão (ex.: passou de "quente" para "frio"): troca só a
+      // frase do aviso e mantém a justificativa que já estava sendo digitada.
+      const novo = document.createElement("div");
+      novo.innerHTML = htmlAvisoTemp(it, nr);
+      $(".aviso", av).replaceWith($(".aviso", novo));
+      $("textarea", av).placeholder = $("textarea", novo).placeholder;
+    }
     atualizarContador();
     salvarDepois();
   }
@@ -891,14 +906,22 @@
     } finally { carregando(null); }
   }
 
-  function linkConexao() {
-    const dados = btoa(unescape(encodeURIComponent(JSON.stringify({ u: $("#cfg-url").value.trim(), k: $("#cfg-chave").value.trim(), w: $("#cfg-whats").value.trim(), g: lerGeladeiras() }))));
+  // gerente = true: o celular que abrir o link já fica com o Painel da gerência ligado.
+  function linkConexao(gerente) {
+    const d = { u: $("#cfg-url").value.trim(), k: $("#cfg-chave").value.trim(), w: $("#cfg-whats").value.trim(), g: lerGeladeiras(), l: $("#cfg-loja").value.trim() };
+    if (gerente) d.m = 1;
+    const dados = btoa(unescape(encodeURIComponent(JSON.stringify(d))));
     return `${location.origin}${location.pathname}?conectar=${encodeURIComponent(dados)}`;
   }
 
   function enviarLinkLoja() {
     if (!$("#cfg-url").value.trim() || !$("#cfg-chave").value.trim()) return toast("Preencha o link e a chave primeiro.");
-    abrirWhats(`📋 *Check-list BK* — toque no link abaixo no celular da loja para conectar o app ao painel da gerência:\n\n${linkConexao()}`);
+    abrirWhats(`📋 *Check-list BK* — toque no link abaixo no celular da loja para conectar o app ao painel da gerência:\n\n${linkConexao(false)}`);
+  }
+
+  function enviarLinkGerente() {
+    if (!$("#cfg-url").value.trim() || !$("#cfg-chave").value.trim()) return toast("Preencha o link e a chave primeiro.");
+    abrirWhats(`📊 *Check-list BK — Painel da gerência*\n\nToque no link abaixo no seu celular para abrir o app já com o painel das lojas. Depois, no menu do navegador, use "Adicionar à tela inicial".\n\n${linkConexao(true)}\n\n⚠️ Não encaminhe este link: ele dá acesso aos relatórios.`);
   }
 
   // Link de conexão recebido pelo WhatsApp: ?conectar=...
@@ -911,8 +934,10 @@
       cfg.syncChave = d.k;
       if (d.w) cfg.whats = d.w;
       if (d.g && d.g.length) cfg.geladeiras = d.g;
+      if (d.l && !cfg.loja) cfg.loja = d.l;
+      if (d.m) cfg.gerencia = true;
       gravarCfg();
-      setTimeout(() => toast("☁️ App conectado ao painel da gerência!", 4000), 300);
+      setTimeout(() => toast(d.m ? "📊 Painel da gerência ligado neste celular!" : "☁️ App conectado ao painel da gerência!", 4000), 300);
     } catch { toast("Link de conexão inválido."); }
     history.replaceState(null, "", location.pathname);
   }
@@ -1026,6 +1051,7 @@
     $("#cfg-geladeiras").addEventListener("input", contarGeladeiras);
     $("#btn-testar").addEventListener("click", testarConexao);
     $("#btn-link-loja").addEventListener("click", enviarLinkLoja);
+    $("#btn-link-gerente").addEventListener("click", enviarLinkGerente);
     $("#btn-anterior").addEventListener("click", anterior);
     $("#btn-proximo").addEventListener("click", proximo);
     $("#input-foto").addEventListener("change", (e) => fotoEscolhida(e.target.files[0]));
