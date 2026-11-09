@@ -611,24 +611,24 @@
     // direto); sem cadastro, a tela de compartilhar para escolher.
     const grupo = cfg.grupoRelatorios || "Relatórios BK";
     const lista = gerentes();
-    const pdfEm = reg.enviadoPdfEm;
+    // Obrigatório: PDF e resumo no grupo (dois envios, porque o WhatsApp descarta
+    // o texto que vai junto com o PDF). Opcional: resumo direto para cada gerente.
+    const pdfEm = reg.enviadoPdfEm, resumoEm = reg.enviadoResumoEm;
     const enviadosPara = reg.enviados || {};
-    const resumoFeito = lista.length ? lista.every((g) => enviadosPara[numeroWhats(g.numero)]) : !!reg.enviadoResumoEm;
-    const enviado = !!(pdfEm && resumoFeito);
-    const botoesResumo = lista.length
-      ? lista.map((g, i) => {
-          const em = enviadosPara[numeroWhats(g.numero)];
-          return `<button class="btn ${em ? "btn-secondary" : "btn-whats"}" data-acao="resumo" data-ger="${i}" ${travar}>💬 ${em ? `Resumo enviado para ${esc(g.nome)} às ${hora(em)}` : `2. Resumo para ${esc(g.nome)}`}</button>`;
-        }).join("")
-      : `<button class="btn ${reg.enviadoResumoEm ? "btn-secondary" : "btn-whats"}" data-acao="resumo" ${travar}>💬 ${reg.enviadoResumoEm ? `Resumo enviado às ${hora(reg.enviadoResumoEm)} · enviar de novo` : "2. Enviar o resumo"}</button>`;
+    const enviado = !!(pdfEm && resumoEm);
+    const botoesDiretos = lista.map((g, i) => {
+      const em = enviadosPara[numeroWhats(g.numero)];
+      return `<button class="btn btn-secondary" data-acao="resumo" data-ger="${i}" ${travar}>💬 ${em ? `Resumo enviado para ${esc(g.nome)} às ${hora(em)}` : `Resumo direto para ${esc(g.nome)}`}</button>`;
+    }).join("");
     const passoGerencia = `<div class="card passo ${enviado ? "feito" : ""}">
         <div class="num">${enviado ? "✓" : n}</div>
         <div class="conteudo"><h3>Enviar o relatório para a gerência</h3>
           <p>${bloqueado ? "Primeiro avise o grupo da loja (passo acima)."
-            : enviado ? "PDF e resumo enviados."
-            : `Primeiro o PDF: escolha <b>WhatsApp</b> e o grupo <b>${esc(grupo)}</b>. Depois o resumo${lista.length ? ": cada botão já abre a conversa do gerente, é só tocar em Enviar." : "."}`}</p>
+            : enviado ? `PDF e resumo enviados para ${esc(grupo)}.`
+            : `Mande as duas coisas no grupo <b>${esc(grupo)}</b>: primeiro o PDF, depois o resumo. Em cada uma, escolha <b>WhatsApp</b> e o grupo.`}</p>
           <button class="btn ${pdfEm ? "btn-secondary" : "btn-whats"}" data-acao="gerencia" ${travar}>📄 ${pdfEm ? `PDF enviado às ${hora(pdfEm)} · enviar de novo` : `1. Enviar o PDF para ${esc(grupo)}`}</button>
-          ${botoesResumo}
+          <button class="btn ${resumoEm ? "btn-secondary" : "btn-whats"}" data-acao="resumo" ${travar}>💬 ${resumoEm ? `Resumo enviado às ${hora(resumoEm)} · enviar de novo` : `2. Enviar o resumo para ${esc(grupo)}`}</button>
+          ${lista.length ? `<p style="margin-top:6px">Opcional: mandar o resumo direto na conversa de cada gerente.</p>${botoesDiretos}` : ""}
         </div></div>`;
 
     let nuvem = "";
@@ -718,7 +718,6 @@
       abrirWhats(Relatorio.textoResumo(reg), g.numero);
       reg.enviados = { ...(reg.enviados || {}), [numeroWhats(g.numero)]: Date.now() };
       reg.enviadoEm = reg.enviadoEm || Date.now();
-      reg.enviadoResumoEm = Date.now();
       await Db.salvar(reg);
       return renderConcluido();
     }
